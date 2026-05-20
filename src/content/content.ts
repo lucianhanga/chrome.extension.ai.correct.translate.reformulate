@@ -26,6 +26,7 @@ import {
   appendCaptured,
   copyResultToClipboard,
   captureSelectionTarget,
+  isEditableTarget,
 } from './text-replacement.ts';
 import overlayCSS from './overlay.css?inline';
 
@@ -68,15 +69,16 @@ function handleMessage(message: ServiceWorkerToContentScriptMessage): void {
       break;
 
     case 'SHOW_RESULT': {
+      const target = capturedTarget;
       const resultData: import('./overlay.ts').OverlayResultData = {
         action: message.payload.action,
         originalText: message.payload.originalText,
         resultText: message.payload.resultText,
+        editable: isEditableTarget(target),
         ...(message.payload.targetLanguage !== undefined
           ? { targetLanguage: message.payload.targetLanguage }
           : {}),
       };
-      const target = capturedTarget;
       // Auto-copy the result so it is immediately pasteable.
       copyResultToClipboard(message.payload.resultText).catch((err: unknown) => {
         console.error('[content] copy failed:', err);
@@ -182,6 +184,7 @@ async function runTranslateFlow(
       originalText,
       resultText: translation,
       targetLanguage,
+      editable: isEditableTarget(target),
     },
     {
       onReplace: (text: string) => {

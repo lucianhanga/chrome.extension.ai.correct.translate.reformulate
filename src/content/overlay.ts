@@ -17,6 +17,8 @@ export interface OverlayResultData {
   originalText: string;
   resultText: string;
   targetLanguage?: string;
+  /** Whether the selection can be edited in place (Replace/Append apply). */
+  editable: boolean;
 }
 
 export interface OverlayErrorData {
@@ -182,28 +184,38 @@ function renderResult(
 
   body.appendChild(resultDiv);
 
-  // Actions footer: Replace, Append, Close.
+  // Actions footer. Replace/Append apply only when the selection is editable;
+  // for a non-editable selection only Close is shown (the result is still
+  // auto-copied to the clipboard).
   const actionsDiv = document.createElement('div');
   actionsDiv.className = 'ct-overlay-actions';
 
-  const replaceBtn = document.createElement('button');
-  replaceBtn.className = 'ct-btn ct-btn-accept';
-  replaceBtn.textContent = 'Replace';
-  replaceBtn.setAttribute('data-ct-replace', '');
-  const doReplace = (): void => {
-    callbacks.onReplace(data.resultText);
-    cleanup();
-  };
-  replaceBtn.addEventListener('click', doReplace);
+  if (data.editable) {
+    const replaceBtn = document.createElement('button');
+    replaceBtn.className = 'ct-btn ct-btn-accept';
+    replaceBtn.textContent = 'Replace';
+    replaceBtn.setAttribute('data-ct-replace', '');
+    const doReplace = (): void => {
+      callbacks.onReplace(data.resultText);
+      cleanup();
+    };
+    replaceBtn.addEventListener('click', doReplace);
 
-  const appendBtn = document.createElement('button');
-  appendBtn.className = 'ct-btn ct-btn-secondary';
-  appendBtn.textContent = 'Append';
-  appendBtn.setAttribute('data-ct-append', '');
-  appendBtn.addEventListener('click', () => {
-    callbacks.onAppend(data.resultText);
-    cleanup();
-  });
+    const appendBtn = document.createElement('button');
+    appendBtn.className = 'ct-btn ct-btn-secondary';
+    appendBtn.textContent = 'Append';
+    appendBtn.setAttribute('data-ct-append', '');
+    appendBtn.addEventListener('click', () => {
+      callbacks.onAppend(data.resultText);
+      cleanup();
+    });
+
+    actionsDiv.appendChild(replaceBtn);
+    actionsDiv.appendChild(appendBtn);
+    primaryKeyAction = doReplace;
+  } else {
+    primaryKeyAction = null;
+  }
 
   const closeBtn = document.createElement('button');
   closeBtn.className = 'ct-btn ct-btn-dismiss';
@@ -214,12 +226,9 @@ function renderResult(
     cleanup();
   });
 
-  actionsDiv.appendChild(replaceBtn);
-  actionsDiv.appendChild(appendBtn);
   actionsDiv.appendChild(closeBtn);
   overlay.appendChild(actionsDiv);
 
-  primaryKeyAction = doReplace;
   setupKeyboardHandler(callbacks.onReject);
 }
 
@@ -407,7 +416,9 @@ function buildResultTitle(data: OverlayResultData): string {
 }
 
 function focusPrimaryButton(root: ShadowRoot): void {
-  const btn = root.querySelector('[data-ct-replace]') as HTMLButtonElement | null;
+  const btn = root.querySelector(
+    '[data-ct-replace], [data-ct-close]',
+  ) as HTMLButtonElement | null;
   btn?.focus();
 }
 
