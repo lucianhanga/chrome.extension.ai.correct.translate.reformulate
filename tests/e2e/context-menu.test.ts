@@ -132,6 +132,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // The overlay host should appear immediately with the loading state.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
@@ -140,6 +141,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // 120 s: covers cold inference on qwen3:14b (model should be warm after globalSetup).
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 120_000 },
     );
   });
@@ -165,6 +167,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // and sends SHOW_ERROR. The overlay appears quickly (no Ollama call needed).
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
   });
@@ -189,6 +192,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // Loading overlay appears immediately.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
@@ -196,6 +200,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // The host element stays present in both loading and error states.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 15_000 },
     );
 
@@ -226,12 +231,14 @@ test.describe('Context menu: Translate', () => {
     // Overlay appears immediately with loading state.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
     // Wait for the real Ollama call to complete (host stays present in result state).
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 120_000 },
     );
   });
@@ -252,11 +259,13 @@ test.describe('Context menu: Translate', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 120_000 },
     );
   });
@@ -277,11 +286,13 @@ test.describe('Context menu: Translate', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 120_000 },
     );
   });
