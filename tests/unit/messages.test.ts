@@ -8,6 +8,7 @@ import {
   isHealthCheckRequest,
   isGetSettingsRequest,
   isSaveSettingsRequest,
+  isValidateOpenAIKeyRequest,
 } from '../../src/shared/messages.ts';
 
 describe('isValidMessageType', () => {
@@ -17,6 +18,7 @@ describe('isValidMessageType', () => {
     expect(isValidMessageType('HEALTH_CHECK')).toBe(true);
     expect(isValidMessageType('GET_SETTINGS')).toBe(true);
     expect(isValidMessageType('SAVE_SETTINGS')).toBe(true);
+    expect(isValidMessageType('VALIDATE_OPENAI_KEY')).toBe(true);
     expect(isValidMessageType('SHOW_LOADING')).toBe(true);
     expect(isValidMessageType('SHOW_RESULT')).toBe(true);
     expect(isValidMessageType('SHOW_ERROR')).toBe(true);
@@ -156,5 +158,96 @@ describe('isSaveSettingsRequest', () => {
 
   it('rejects null', () => {
     expect(isSaveSettingsRequest(null)).toBe(false);
+  });
+
+  it('accepts the new OpenAI settings fields', () => {
+    const msg = {
+      type: 'SAVE_SETTINGS',
+      payload: {
+        settings: {
+          provider: 'openai',
+          openaiModel: 'gpt-5-nano',
+          openaiApiKey: 'sk-test',
+          openaiConsentAcknowledged: true,
+        },
+      },
+    };
+    expect(isSaveSettingsRequest(msg)).toBe(true);
+  });
+
+  it('accepts the redaction sentinel as openaiApiKey (it is still a string)', () => {
+    const msg = {
+      type: 'SAVE_SETTINGS',
+      payload: { settings: { openaiApiKey: '__SET__' } },
+    };
+    expect(isSaveSettingsRequest(msg)).toBe(true);
+  });
+
+  it('rejects an invalid provider value', () => {
+    const msg = {
+      type: 'SAVE_SETTINGS',
+      payload: { settings: { provider: 'anthropic' } },
+    };
+    expect(isSaveSettingsRequest(msg)).toBe(false);
+  });
+
+  it('rejects a non-string openaiApiKey value', () => {
+    const msg = {
+      type: 'SAVE_SETTINGS',
+      payload: { settings: { openaiApiKey: 12345 } },
+    };
+    expect(isSaveSettingsRequest(msg)).toBe(false);
+  });
+});
+
+describe('isValidateOpenAIKeyRequest', () => {
+  it('accepts a valid VALIDATE_OPENAI_KEY message', () => {
+    const msg = {
+      type: 'VALIDATE_OPENAI_KEY',
+      payload: { key: 'sk-test', model: 'gpt-5-nano' },
+    };
+    expect(isValidateOpenAIKeyRequest(msg)).toBe(true);
+  });
+
+  it('accepts both available OpenAI models', () => {
+    expect(isValidateOpenAIKeyRequest({
+      type: 'VALIDATE_OPENAI_KEY',
+      payload: { key: 'sk-test', model: 'gpt-5.4-nano' },
+    })).toBe(true);
+    expect(isValidateOpenAIKeyRequest({
+      type: 'VALIDATE_OPENAI_KEY',
+      payload: { key: 'sk-test', model: 'gpt-5-nano' },
+    })).toBe(true);
+  });
+
+  it('rejects an unknown model', () => {
+    const msg = {
+      type: 'VALIDATE_OPENAI_KEY',
+      payload: { key: 'sk-test', model: 'gpt-4o' },
+    };
+    expect(isValidateOpenAIKeyRequest(msg)).toBe(false);
+  });
+
+  it('rejects a non-string key', () => {
+    const msg = {
+      type: 'VALIDATE_OPENAI_KEY',
+      payload: { key: 123, model: 'gpt-5-nano' },
+    };
+    expect(isValidateOpenAIKeyRequest(msg)).toBe(false);
+  });
+
+  it('rejects a missing payload', () => {
+    expect(isValidateOpenAIKeyRequest({ type: 'VALIDATE_OPENAI_KEY' })).toBe(false);
+  });
+
+  it('rejects the wrong message type', () => {
+    expect(isValidateOpenAIKeyRequest({
+      type: 'SAVE_SETTINGS',
+      payload: { key: 'sk-test', model: 'gpt-5-nano' },
+    })).toBe(false);
+  });
+
+  it('rejects null', () => {
+    expect(isValidateOpenAIKeyRequest(null)).toBe(false);
   });
 });
