@@ -1,16 +1,16 @@
 // src/content/overlay.ts
-// Shadow DOM overlay for loading, language-confirm, result, and error states.
+// Shadow DOM overlay for loading, result, and error states.
 // Only one overlay exists at a time -- creating a new one removes any existing one.
 
-import type { ActionType, ErrorCode, SupportedLanguage } from '../shared/types.ts';
-import { COLORS, SUPPORTED_LANGUAGES } from '../shared/constants.ts';
+import type { ActionType, ErrorCode } from '../shared/types.ts';
+import { COLORS } from '../shared/constants.ts';
 import { ERROR_COLORS } from '../shared/errors.ts';
 
 // ============================================================
 // Types
 // ============================================================
 
-export type OverlayState = 'loading' | 'confirm' | 'result' | 'error';
+export type OverlayState = 'loading' | 'result' | 'error';
 
 export interface OverlayResultData {
   action: ActionType;
@@ -37,19 +37,6 @@ export interface OverlayCallbacks {
   onReject: () => void;
 }
 
-export interface OverlayLanguageConfirmData {
-  originalText: string;
-  detectedLanguage: SupportedLanguage;
-  targetLanguage: SupportedLanguage;
-}
-
-export interface LanguageConfirmCallbacks {
-  /** Called with the (possibly user-corrected) source language. */
-  onConfirm: (sourceLanguage: SupportedLanguage) => void;
-  /** Called when the user cancels before translating. */
-  onCancel: () => void;
-}
-
 // ============================================================
 // Singleton host tracking
 // ============================================================
@@ -69,25 +56,6 @@ export function showLoading(action: ActionType, _originalText: string): void {
   const position = getSelectionPosition();
   const root = createOrReplaceOverlay();
   renderLoading(root, action === 'correct' ? 'Correcting…' : 'Translating…');
-  positionOverlay(currentHostElement!, position);
-}
-
-/** Show the "Detecting language…" state (first step of the translate flow). */
-export function showDetecting(): void {
-  const position = getSelectionPosition();
-  const root = createOrReplaceOverlay();
-  renderLoading(root, 'Detecting language…');
-  positionOverlay(currentHostElement!, position);
-}
-
-/** Show the language-confirmation step: detected language is editable before translating. */
-export function showLanguageConfirm(
-  data: OverlayLanguageConfirmData,
-  callbacks: LanguageConfirmCallbacks,
-): void {
-  const position = getSelectionPosition();
-  const root = currentShadowRoot ?? createOrReplaceOverlay();
-  renderLanguageConfirm(root, data, callbacks);
   positionOverlay(currentHostElement!, position);
 }
 
@@ -171,86 +139,6 @@ function renderLoading(root: ShadowRoot, title: string): void {
   loadingDiv.appendChild(spinner);
   loadingDiv.appendChild(label);
   body.appendChild(loadingDiv);
-}
-
-function renderLanguageConfirm(
-  root: ShadowRoot,
-  data: OverlayLanguageConfirmData,
-  callbacks: LanguageConfirmCallbacks,
-): void {
-  const overlay = buildOverlayShell(root, `Translate to ${data.targetLanguage}`);
-  const body = overlay.querySelector('.ct-overlay-body') as HTMLElement;
-
-  const confirmDiv = document.createElement('div');
-  confirmDiv.className = 'ct-overlay-confirm';
-
-  // Original text (dimmed)
-  const originalBlock = document.createElement('div');
-  originalBlock.className = 'ct-original';
-  const originalLabel = document.createElement('span');
-  originalLabel.className = 'ct-original-label';
-  originalLabel.textContent = 'Original';
-  const originalText = document.createElement('span');
-  originalText.textContent = data.originalText;
-  originalBlock.appendChild(originalLabel);
-  originalBlock.appendChild(originalText);
-
-  // Detected-language row with an editable select
-  const langRow = document.createElement('div');
-  langRow.className = 'ct-lang-row';
-
-  const langLabel = document.createElement('span');
-  langLabel.className = 'ct-lang-label';
-  langLabel.textContent = 'Detected language';
-
-  const select = document.createElement('select');
-  select.className = 'ct-lang-select';
-  select.setAttribute('data-ct-lang-select', '');
-  for (const lang of SUPPORTED_LANGUAGES) {
-    const opt = document.createElement('option');
-    opt.value = lang;
-    opt.textContent = lang;
-    if (lang === data.detectedLanguage) opt.selected = true;
-    select.appendChild(opt);
-  }
-
-  langRow.appendChild(langLabel);
-  langRow.appendChild(select);
-
-  confirmDiv.appendChild(originalBlock);
-  confirmDiv.appendChild(langRow);
-  body.appendChild(confirmDiv);
-
-  // Actions footer
-  const actionsDiv = document.createElement('div');
-  actionsDiv.className = 'ct-overlay-actions';
-
-  const translateBtn = document.createElement('button');
-  translateBtn.className = 'ct-btn ct-btn-accept';
-  translateBtn.textContent = 'Translate';
-  translateBtn.setAttribute('data-ct-confirm', '');
-  const doConfirm = (): void => {
-    callbacks.onConfirm(select.value as SupportedLanguage);
-  };
-  translateBtn.addEventListener('click', doConfirm);
-
-  const cancelBtn = document.createElement('button');
-  cancelBtn.className = 'ct-btn ct-btn-reject';
-  cancelBtn.textContent = 'Cancel';
-  cancelBtn.addEventListener('click', () => {
-    callbacks.onCancel();
-    cleanup();
-  });
-
-  actionsDiv.appendChild(translateBtn);
-  actionsDiv.appendChild(cancelBtn);
-  overlay.appendChild(actionsDiv);
-
-  primaryKeyAction = doConfirm;
-  setupKeyboardHandler(() => {
-    callbacks.onCancel();
-  });
-  translateBtn.focus();
 }
 
 function renderResult(

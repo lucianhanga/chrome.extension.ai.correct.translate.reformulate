@@ -3,26 +3,23 @@
 // Receives messages from the service worker and manages the overlay lifecycle.
 // For grammar correction the service worker drives loading -> result; for
 // translation the service worker hands off via START_TRANSLATE and this script
-// orchestrates the detect-language -> confirm -> translate steps itself.
+// runs the translate-and-show-result flow (the source language is auto-detected
+// by the model during the translation call).
 
 import type {
   ServiceWorkerToContentScriptMessage,
   ServiceWorkerResponse,
-  DetectLanguageResponse,
   SuccessResponse,
   ErrorResponse,
   SupportedLanguage,
 } from '../shared/messages.ts';
 import {
   showLoading,
-  showDetecting,
-  showLanguageConfirm,
   showResult,
   showError,
   dismissOverlay,
   setOverlayCSS,
 } from './overlay.ts';
-import type { CapturedTarget } from './text-replacement.ts';
 import {
   applyResult,
   replaceCaptured,
@@ -114,81 +111,29 @@ function handleMessage(message: ServiceWorkerToContentScriptMessage): void {
 }
 
 // ============================================================
-// Translate Flow Orchestration
+// Translate Flow
 // ============================================================
 
 /**
- * Drive the interactive translate flow inside the page:
- *   detect language -> let the user confirm/correct it -> translate.
+ * Translate the selected text and render the result. The source language is
+ * auto-detected by the model during the translation call -- no separate
+ * detection step. Replace/Append act on the captured selection.
  */
 async function runTranslateFlow(
   originalText: string,
   targetLanguage: SupportedLanguage,
 ): Promise<void> {
-  // Capture the selection now, before any overlay click collapses it.
+  // Capture the selection before the overlay is shown so Replace/Append can
+  // act on the original text field.
   const target = captureSelectionTarget();
 
-  showDetecting();
-
-  let detectedLanguage: SupportedLanguage;
-  try {
-    const response = (await chrome.runtime.sendMessage({
-      type: 'DETECT_LANGUAGE',
-      payload: { text: originalText },
-    })) as ServiceWorkerResponse;
-
-    if (isErrorResponse(response)) {
-      showError({ errorCode: response.errorCode, errorMessage: response.error });
-      return;
-    }
-    if (!isDetectLanguageResponse(response)) {
-      showError({
-        errorCode: 'UNEXPECTED_RESPONSE',
-        errorMessage: 'Unexpected response from the extension service worker.',
-      });
-      return;
-    }
-    detectedLanguage = response.detectedLanguage;
-  } catch (err) {
-    console.error('[content] detect language failed:', err);
-    showError({
-      errorCode: 'OLLAMA_UNREACHABLE',
-      errorMessage: 'Could not reach the extension service worker.',
-    });
-    return;
-  }
-
-  showLanguageConfirm(
-    { originalText, detectedLanguage, targetLanguage },
-    {
-      onConfirm: (sourceLanguage: SupportedLanguage) => {
-        runTranslation(originalText, targetLanguage, sourceLanguage, target).catch(
-          (err: unknown) => {
-            console.error('[content] translation failed:', err);
-          },
-        );
-      },
-      onCancel: () => {
-        // Overlay already dismissed by the confirm renderer.
-      },
-    },
-  );
-}
-
-/** Run the translation with the confirmed source language and render the result. */
-async function runTranslation(
-  originalText: string,
-  targetLanguage: SupportedLanguage,
-  sourceLanguage: SupportedLanguage,
-  target: CapturedTarget,
-): Promise<void> {
   showLoading('translate', originalText);
 
   let response: ServiceWorkerResponse;
   try {
     response = (await chrome.runtime.sendMessage({
       type: 'TRANSLATE',
-      payload: { text: originalText, targetLanguage, sourceLanguage },
+      payload: { text: originalText, targetLanguage, sourceLanguage: null },
     })) as ServiceWorkerResponse;
   } catch (err) {
     console.error('[content] translate request failed:', err);
@@ -248,10 +193,6 @@ async function runTranslation(
 
 function isErrorResponse(r: ServiceWorkerResponse): r is ErrorResponse {
   return r.success === false;
-}
-
-function isDetectLanguageResponse(r: ServiceWorkerResponse): r is DetectLanguageResponse {
-  return r.success === true && 'detectedLanguage' in r;
 }
 
 function isSuccessResponse(r: ServiceWorkerResponse): r is SuccessResponse {
