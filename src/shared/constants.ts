@@ -1,7 +1,7 @@
 // src/shared/constants.ts
 // Shared constants used across extension contexts.
 
-import type { SupportedLanguage, ExtensionSettings } from './types.ts';
+import type { SupportedLanguage, ExtensionSettings, OpenAIModel } from './types.ts';
 
 // ============================================================
 // Supported Languages
@@ -40,6 +40,30 @@ export const OLLAMA_PARAMS = {
 } as const;
 
 // ============================================================
+// OpenAI Defaults
+// ============================================================
+
+export const OPENAI_API_BASE = 'https://api.openai.com';
+export const DEFAULT_OPENAI_MODEL: OpenAIModel = 'gpt-5-nano';
+export const AVAILABLE_OPENAI_MODELS: readonly OpenAIModel[] = [
+  'gpt-5.4-nano',
+  'gpt-5-nano',
+] as const;
+
+// ============================================================
+// OpenAI Request Parameters
+// gpt-5-nano and gpt-5.4-nano are standard chat completions models that
+// accept temperature at the top level. top_k, num_ctx, and think are Ollama-only
+// and are intentionally omitted. max_tokens / max_completion_tokens are omitted
+// to let the model use its own defaults (graceful degradation).
+// ============================================================
+
+export const OPENAI_PARAMS = {
+  temperature: 0.2,
+  top_p: 0.8,
+} as const;
+
+// ============================================================
 // Timeouts
 // ============================================================
 
@@ -61,6 +85,10 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   model: DEFAULT_MODEL,
   defaultTargetLanguage: 'English',
   sourceLanguageOverride: null,
+  provider: 'ollama',
+  openaiModel: DEFAULT_OPENAI_MODEL,
+  openaiApiKey: '',
+  openaiConsentAcknowledged: false,
 };
 
 // ============================================================
