@@ -1502,10 +1502,10 @@ themselves -- they ask the factory for a client and call `client.call(...)`.
 - Talks to `https://api.openai.com/v1/chat/completions` (the
   `OPENAI_API_BASE` constant), non-streaming, with an
   `Authorization: Bearer <key>` header.
-- Request body carries only top-level `temperature` and `top_p` (see
-  `OPENAI_PARAMS`); `top_k`, `num_ctx`, and `think` are Ollama-only and are
-  intentionally omitted. `max_tokens` / `max_completion_tokens` are omitted so
-  the model uses its own defaults.
+- Request body is minimal -- `model`, `messages`, `stream: false`. No sampling
+  parameters are sent: the `gpt-5-nano` / `gpt-5.4-nano` models reject a
+  non-default `temperature` or `top_p` with HTTP 400, so the model is left to
+  use its own defaults. `max_tokens` / `max_completion_tokens` are omitted too.
 - `checkOpenAIHealth` calls `GET /v1/models` and checks whether the configured
   model `id` is present in the returned list.
 - Errors are structural `LLMError` instances carrying an `ErrorCode`:
@@ -1528,7 +1528,7 @@ graph TD
     Val --> GS["getSettings()"]
     GS --> P{"settings.provider"}
     P -->|"openai"| F["getActiveClient(settings)"]
-    F --> OC["OpenAI client.call(systemPrompt, text, {model, temperature: 0.2})"]
+    F --> OC["OpenAI client.call(systemPrompt, text, {model})"]
     OC --> OAPI["POST https://api.openai.com/v1/chat/completions"]
     P -->|"ollama"| T["tasks.ts: correctGrammar / translateText"]
     T --> OLAPI["POST http://localhost:11434/v1/chat/completions"]
@@ -1539,7 +1539,7 @@ graph TD
 - **OpenAI path**: the handler builds the system prompt (the same
   `GRAMMAR_CORRECT_SYSTEM` / `buildTranslateSystemPrompt` used for Ollama),
   obtains the client from `getActiveClient`, and calls `client.call(...)` with
-  `model: settings.openaiModel` and `temperature: 0.2`.
+  `model: settings.openaiModel`.
 - **Ollama path**: the handler delegates to `tasks.ts` so existing tests stay
   valid; `tasks.ts` calls `callOllama` directly.
 - **`HEALTH_CHECK`**: routed by provider -- `checkOpenAIHealth` (using the stored
@@ -1641,18 +1641,17 @@ The developer agent should test the chosen plugin and fall back if it causes bui
 | Timeout | `60000` ms (`REQUEST_TIMEOUT_MS`) | Accommodates model load + inference |
 | Input limit | `10000` characters (`MAX_INPUT_LENGTH`) | Prevents excessive load |
 
-### OpenAI provider (`OPENAI_PARAMS`)
+### OpenAI provider
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
 | `model` | `gpt-5-nano` (shipped default, `DEFAULT_OPENAI_MODEL`); `gpt-5.4-nano` also selectable | The two supported online models |
-| `temperature` | `0.2` | Same low-creativity rationale as Ollama |
-| `top_p` | `0.8` | Top-level parameter for the chat completions models |
 | API base | `https://api.openai.com` (`OPENAI_API_BASE`, fixed) | OpenAI chat completions, non-streaming |
 | API endpoint | `/v1/chat/completions` | Correction / translation calls |
 | Health / validation endpoint | `/v1/models` | Used for health checks and `VALIDATE_OPENAI_KEY` |
 | Timeout | `60000` ms (`REQUEST_TIMEOUT_MS`) | Shared with Ollama |
-| Omitted | `top_k`, `num_ctx`, `think`, `max_tokens` | Ollama-only or left at model defaults |
+| Sampling params | none sent | `gpt-5-nano` / `gpt-5.4-nano` reject a non-default `temperature` / `top_p` (HTTP 400); the model uses its own defaults |
+| Omitted | `temperature`, `top_p`, `top_k`, `num_ctx`, `think`, `max_tokens` | Rejected by the model, Ollama-only, or left at model defaults |
 
 ## Appendix D: Dependencies (Expected)
 

@@ -11,7 +11,6 @@ import type { LLMClient, LLMHealthResult } from './llm-client.ts';
 import { LLMError } from '../shared/errors.ts';
 import {
   OPENAI_API_BASE,
-  OPENAI_PARAMS,
   REQUEST_TIMEOUT_MS,
   HEALTH_CHECK_TIMEOUT_MS,
 } from '../shared/constants.ts';
@@ -20,16 +19,15 @@ import {
 // Request Builder
 // ============================================================
 
-// gpt-5-nano and gpt-5.4-nano are standard chat completions models.
-// They accept temperature at the top level (not inside an options block).
-// top_k, num_ctx, and think are Ollama-only and are intentionally omitted.
-// max_tokens / max_completion_tokens are omitted to use model defaults
-// (graceful degradation for any future model that rejects these params).
+// The gpt-5-nano / gpt-5.4-nano models reject non-default sampling
+// parameters (temperature, top_p) with HTTP 400. The request is kept
+// minimal -- model, messages, stream -- so the model uses its own
+// defaults. max_tokens / max_completion_tokens are omitted for the same
+// reason.
 function buildOpenAIRequest(
   systemPrompt: string,
   userText: string,
   model: string,
-  temperature: number,
 ): object {
   return {
     model,
@@ -38,8 +36,6 @@ function buildOpenAIRequest(
       { role: 'user', content: userText },
     ],
     stream: false,
-    temperature,
-    top_p: OPENAI_PARAMS.top_p,
   };
 }
 
@@ -55,7 +51,6 @@ function buildOpenAIRequest(
  * @param userText - The user's input text
  * @param model - The model identifier (e.g. 'gpt-5-nano')
  * @param timeoutMs - Request timeout in milliseconds
- * @param temperature - Sampling temperature
  * @returns The model's trimmed response text
  * @throws LLMError with an appropriate ErrorCode on failure
  */
@@ -65,14 +60,13 @@ export async function callOpenAI(
   userText: string,
   model: string,
   timeoutMs: number = REQUEST_TIMEOUT_MS,
-  temperature: number = OPENAI_PARAMS.temperature,
 ): Promise<string> {
   if (!userText || userText.trim() === '') {
     return '';
   }
 
   const url = `${OPENAI_API_BASE}/v1/chat/completions`;
-  const body = buildOpenAIRequest(systemPrompt, userText, model, temperature);
+  const body = buildOpenAIRequest(systemPrompt, userText, model);
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -205,14 +199,7 @@ export async function checkOpenAIHealth(
 export function createOpenAIClient(cfg: { apiKey: string; model: string }): LLMClient {
   return {
     call: (system, user, opts): Promise<string> =>
-      callOpenAI(
-        cfg.apiKey,
-        system,
-        user,
-        opts.model,
-        opts.timeoutMs,
-        opts.temperature,
-      ),
+      callOpenAI(cfg.apiKey, system, user, opts.model, opts.timeoutMs),
     healthCheck: (model): Promise<LLMHealthResult> =>
       checkOpenAIHealth(cfg.apiKey, model),
   };

@@ -22,7 +22,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   INPUT_TOO_LONG:
     'Text is too long (max 10,000 characters). Select a shorter passage.',
   UNEXPECTED_RESPONSE:
-    'Received an unexpected response from Ollama. Check if Ollama is working correctly.',
+    'Received an unexpected response from the language model. Check that the selected provider is working correctly.',
   UNKNOWN_ERROR:
     'An unexpected error occurred. Check the browser console for details.',
   INVALID_MESSAGE:

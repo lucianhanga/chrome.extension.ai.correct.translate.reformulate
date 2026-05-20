@@ -51,19 +51,6 @@ export const AVAILABLE_OPENAI_MODELS: readonly OpenAIModel[] = [
 ] as const;
 
 // ============================================================
-// OpenAI Request Parameters
-// gpt-5-nano and gpt-5.4-nano are standard chat completions models that
-// accept temperature at the top level. top_k, num_ctx, and think are Ollama-only
-// and are intentionally omitted. max_tokens / max_completion_tokens are omitted
-// to let the model use its own defaults (graceful degradation).
-// ============================================================
-
-export const OPENAI_PARAMS = {
-  temperature: 0.2,
-  top_p: 0.8,
-} as const;
-
-// ============================================================
 // Timeouts
 // ============================================================
 

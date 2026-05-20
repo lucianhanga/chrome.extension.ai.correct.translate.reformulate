@@ -92,22 +92,24 @@ describe('callOpenAI', () => {
     expect(headers['Content-Type']).toBe('application/json');
   });
 
-  it('sends a top-level temperature and model (OpenAI request shape, no options block)', async () => {
+  it('sends a minimal request shape (model, messages, stream; no sampling params)', async () => {
     const fetchMock = mockFetchSuccess('ok');
-    await callOpenAI('sk-test', 'prompt', 'text', 'gpt-5.4-nano', undefined, 0.4);
+    await callOpenAI('sk-test', 'prompt', 'text', 'gpt-5.4-nano');
 
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(init.body as string) as {
       model: string;
-      temperature: number;
       stream: boolean;
+      temperature?: unknown;
+      top_p?: unknown;
       options?: unknown;
       messages: Array<{ role: string; content: string }>;
     };
     expect(body.model).toBe('gpt-5.4-nano');
-    expect(body.temperature).toBe(0.4);
     expect(body.stream).toBe(false);
-    // OpenAI request shape does not nest params in an options block.
+    // gpt-5-nano / gpt-5.4-nano reject non-default sampling params -- none are sent.
+    expect(body.temperature).toBeUndefined();
+    expect(body.top_p).toBeUndefined();
     expect(body.options).toBeUndefined();
     expect(body.messages[0]).toEqual({ role: 'system', content: 'prompt' });
     expect(body.messages[1]).toEqual({ role: 'user', content: 'text' });
@@ -287,15 +289,15 @@ describe('createOpenAIClient', () => {
     expect(result).toBe('adapter result');
   });
 
-  it('passes per-call model and temperature through to the request body', async () => {
+  it('passes the per-call model through to the request body', async () => {
     const fetchMock = mockFetchSuccess('ok');
     const client = createOpenAIClient({ apiKey: 'sk-test', model: 'gpt-5-nano' });
-    await client.call('system', 'user', { model: 'gpt-5.4-nano', temperature: 0.7 });
+    await client.call('system', 'user', { model: 'gpt-5.4-nano' });
 
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
-    const body = JSON.parse(init.body as string) as { model: string; temperature: number };
+    const body = JSON.parse(init.body as string) as { model: string; temperature?: unknown };
     expect(body.model).toBe('gpt-5.4-nano');
-    expect(body.temperature).toBe(0.7);
+    expect(body.temperature).toBeUndefined();
   });
 
   it('produces an LLMClient whose healthCheck() reports model availability', async () => {
