@@ -20,13 +20,12 @@ import {
   dismissOverlay,
   setOverlayCSS,
 } from './overlay.ts';
+import type { CapturedTarget } from './text-replacement.ts';
 import {
-  applyResult,
   replaceCaptured,
   appendCaptured,
   copyResultToClipboard,
   captureSelectionTarget,
-  isEditableTarget,
 } from './text-replacement.ts';
 import overlayCSS from './overlay.css?inline';
 
@@ -35,6 +34,10 @@ import overlayCSS from './overlay.css?inline';
 // ============================================================
 
 setOverlayCSS(overlayCSS);
+
+// The page selection captured when a loading overlay is shown, so the result's
+// Replace/Append actions can act on the original text field.
+let capturedTarget: CapturedTarget = { kind: 'none' };
 
 // Guard against being injected multiple times into the same page.
 const MARKER = '__ct_content_registered__';
@@ -59,6 +62,8 @@ function registerMessageListener(): void {
 function handleMessage(message: ServiceWorkerToContentScriptMessage): void {
   switch (message.type) {
     case 'SHOW_LOADING':
+      // Capture the selection now, while it is still live, for Replace/Append.
+      capturedTarget = captureSelectionTarget();
       showLoading(message.payload.action, message.payload.originalText);
       break;
 
@@ -71,10 +76,20 @@ function handleMessage(message: ServiceWorkerToContentScriptMessage): void {
           ? { targetLanguage: message.payload.targetLanguage }
           : {}),
       };
+      const target = capturedTarget;
+      // Auto-copy the result so it is immediately pasteable.
+      copyResultToClipboard(message.payload.resultText).catch((err: unknown) => {
+        console.error('[content] copy failed:', err);
+      });
       showResult(resultData, {
-        onAccept: (resultText: string) => {
-          applyResult(resultText).catch((err: unknown) => {
-            console.error('[content] applyResult failed:', err);
+        onReplace: (text: string) => {
+          replaceCaptured(target, text).catch((err: unknown) => {
+            console.error('[content] replace failed:', err);
+          });
+        },
+        onAppend: (text: string) => {
+          appendCaptured(target, text).catch((err: unknown) => {
+            console.error('[content] append failed:', err);
           });
         },
         onReject: () => {
@@ -167,7 +182,6 @@ async function runTranslateFlow(
       originalText,
       resultText: translation,
       targetLanguage,
-      editable: isEditableTarget(target),
     },
     {
       onReplace: (text: string) => {
