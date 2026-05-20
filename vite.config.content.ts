@@ -23,6 +23,14 @@ export default defineConfig({
       '@background': resolve(__dirname, 'src/background'),
     },
   },
+  // Do NOT copy the public/ directory. This build runs AFTER the main build,
+  // which has already emitted manifest.json + icons into the output directory.
+  // For the test build the main build's closeBundle hook PATCHES the manifest
+  // (adds 'http://localhost/*' to host_permissions). If this content build
+  // copied public/ again it would overwrite that patched manifest with the
+  // unpatched production one -- silently breaking content-script injection in
+  // the e2e suite. publicDir: false prevents that clobber.
+  publicDir: false,
   build: {
     outDir: process.env.CONTENT_OUT_DIR ?? 'dist',
     emptyOutDir: false,

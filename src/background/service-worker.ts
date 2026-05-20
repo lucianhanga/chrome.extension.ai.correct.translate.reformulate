@@ -97,7 +97,8 @@ function handleContextMenuClick(
       }
 
       // Translate: hand off to the content script, which runs the
-      // detect-language -> confirm -> translate flow itself.
+      // translate-and-show-result flow itself (the model auto-detects the
+      // source language during the translation call -- no separate step).
       if (resolvedAction.action === 'translate' && resolvedAction.targetLanguage !== undefined) {
         sendToContentScript(tabId, {
           type: 'START_TRANSLATE',

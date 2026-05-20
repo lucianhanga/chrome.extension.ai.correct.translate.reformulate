@@ -5,7 +5,6 @@ import {
   isSupportedLanguage,
   isCorrectGrammarRequest,
   isTranslateRequest,
-  isDetectLanguageRequest,
   isHealthCheckRequest,
   isGetSettingsRequest,
   isSaveSettingsRequest,
@@ -22,7 +21,6 @@ describe('isValidMessageType', () => {
     expect(isValidMessageType('SHOW_RESULT')).toBe(true);
     expect(isValidMessageType('SHOW_ERROR')).toBe(true);
     expect(isValidMessageType('DISMISS_OVERLAY')).toBe(true);
-    expect(isValidMessageType('DETECT_LANGUAGE')).toBe(true);
     expect(isValidMessageType('START_TRANSLATE')).toBe(true);
   });
 
@@ -116,28 +114,6 @@ describe('isTranslateRequest', () => {
 
   it('rejects null', () => {
     expect(isTranslateRequest(null)).toBe(false);
-  });
-});
-
-describe('isDetectLanguageRequest', () => {
-  it('accepts a valid DETECT_LANGUAGE message', () => {
-    expect(isDetectLanguageRequest({ type: 'DETECT_LANGUAGE', payload: { text: 'Hello' } })).toBe(true);
-  });
-
-  it('rejects missing payload', () => {
-    expect(isDetectLanguageRequest({ type: 'DETECT_LANGUAGE' })).toBe(false);
-  });
-
-  it('rejects non-string text', () => {
-    expect(isDetectLanguageRequest({ type: 'DETECT_LANGUAGE', payload: { text: 42 } })).toBe(false);
-  });
-
-  it('rejects wrong type', () => {
-    expect(isDetectLanguageRequest({ type: 'TRANSLATE', payload: { text: 'hi' } })).toBe(false);
-  });
-
-  it('rejects null', () => {
-    expect(isDetectLanguageRequest(null)).toBe(false);
   });
 });
 

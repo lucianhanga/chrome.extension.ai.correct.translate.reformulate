@@ -20,6 +20,15 @@
 //   5. INPUT_TOO_LONG error is surfaced to the overlay (pure client-side -- no Ollama).
 //   6. OLLAMA_UNREACHABLE error is surfaced when the configured endpoint is a dead port.
 //
+// TRANSLATE FLOW (current, post-rollback):
+//   The translate context-menu click hands off to the content script via the
+//   START_TRANSLATE message. The content script captures the selection, shows a
+//   "Translating…" loading overlay, calls TRANSLATE (the model auto-detects the
+//   source language during the call -- there is NO separate detection/confirm
+//   step), auto-copies the result to the clipboard, and shows the result overlay
+//   with Replace/Append when the selection is editable. Replace is the primary
+//   keyboard action (Enter); we observe it via a changed textarea value.
+//
 // Ollama approach: REAL Ollama at http://localhost:11434 with model qwen3:14b.
 // global-setup.ts verifies reachability and warms the model before any test runs.
 //
@@ -110,6 +119,39 @@ async function setEndpointViaServiceWorker(
   }, endpoint);
 }
 
+// Helper: resolve the active tab's ID from the service worker context.
+async function getTabId(sw: import('@playwright/test').Worker): Promise<number> {
+  return sw.evaluate(async (): Promise<number> => {
+    const tabs = await chrome.tabs.query({ active: true });
+    return tabs[0]?.id ?? -1;
+  });
+}
+
+// Wait for the content script's message listener to be registered.
+//
+// The content script runs in Chrome's ISOLATED content-script world, so the
+// '__ct_content_registered__' marker it sets on window is NOT visible to
+// page.evaluate (which runs in the page's MAIN world). The marker must be read
+// inside the isolated world, reachable via chrome.scripting.executeScript.
+async function waitForContentScript(
+  sw: import('@playwright/test').Worker,
+  tabId: number,
+): Promise<void> {
+  for (let i = 0; i < 25; i++) {
+    const registered = await sw.evaluate(async (tid: number) => {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tid },
+        func: () =>
+          (window as unknown as Record<string, boolean>)['__ct_content_registered__'] === true,
+      });
+      return results[0]?.result === true;
+    }, tabId);
+    if (registered) return;
+    await new Promise<void>((r) => setTimeout(r, 200));
+  }
+  throw new Error('[context-menu-test] Content script did not register within 5 s.');
+}
+
 // ---------------------------------------------------------------------------
 // Suite: Context menu -> Correct Grammar (real Ollama)
 // ---------------------------------------------------------------------------
@@ -132,6 +174,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // The overlay host should appear immediately with the loading state.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
@@ -140,6 +183,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // 120 s: covers cold inference on qwen3:14b (model should be warm after globalSetup).
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 120_000 },
     );
   });
@@ -165,6 +209,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // and sends SHOW_ERROR. The overlay appears quickly (no Ollama call needed).
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
   });
@@ -189,6 +234,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // Loading overlay appears immediately.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
@@ -196,6 +242,7 @@ test.describe('Context menu: Correct Grammar', () => {
     // The host element stays present in both loading and error states.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 15_000 },
     );
 
@@ -206,84 +253,166 @@ test.describe('Context menu: Correct Grammar', () => {
 
 // ---------------------------------------------------------------------------
 // Suite: Context menu -> Translate (real Ollama)
+//
+// The translate context-menu path hands off to the content script via
+// START_TRANSLATE. The content script captures the selection, shows the
+// "Translating…" loading overlay, calls TRANSLATE (the model auto-detects the
+// source language -- no separate detection/confirm step), and shows a result
+// overlay. There is exactly one Ollama call per translate.
 // ---------------------------------------------------------------------------
 
 test.describe('Context menu: Translate', () => {
-  test('translate_en menu click shows overlay and completes', async ({ context, testServerBaseUrl }) => {
+  test('translate_en click shows the loading overlay then a result overlay', async ({ context, testServerBaseUrl }) => {
     const page = await context.newPage();
     await page.goto(`${testServerBaseUrl}/test-page.html`);
 
     const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
     if (!sw) throw new Error('Service worker not found');
 
-    const tabId = await sw.evaluate(async (): Promise<number> => {
-      const tabs = await chrome.tabs.query({ active: true });
-      return tabs[0]?.id ?? -1;
-    });
+    const tabId = await getTabId(sw);
 
     await simulateContextMenuClick(sw, tabId, 'translate_en', 'Hallo, wie geht es dir?');
 
-    // Overlay appears immediately with loading state.
+    // The content script injects, then runTranslateFlow shows the loading overlay.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
-    // Wait for the real Ollama call to complete (host stays present in result state).
+    // After the single real Ollama TRANSLATE call completes, runTranslateFlow
+    // transitions the same overlay to the result state. The host element stays
+    // present throughout loading -> result; if a translate error occurred the
+    // overlay would still be present (error state). We assert it survives the
+    // full round trip.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 120_000 },
     );
   });
 
-  test('translate_de menu click shows overlay and completes', async ({ context, testServerBaseUrl }) => {
+  test('translate_en click on an editable selection applies Replace via Enter', async ({ context, testServerBaseUrl }) => {
+    // This exercises the full rolled-back translate flow end-to-end:
+    //   selection captured -> Translating… overlay -> real Ollama call (model
+    //   auto-detects the source language) -> result overlay with Replace as the
+    //   primary keyboard action. Pressing Enter triggers Replace, which is
+    //   observable as changed editable-element text (the Shadow DOM is closed,
+    //   so the side effect is the only assertable signal).
+    //
+    // The selection is made inside a contenteditable element: selecting text
+    // there produces a real document Selection range, which is what
+    // captureSelectionTarget() reads to resolve an editable target. When the
+    // target is editable the result overlay shows Replace/Append and focuses
+    // the Replace button (host element gains focus), so Enter triggers Replace.
     const page = await context.newPage();
     await page.goto(`${testServerBaseUrl}/test-page.html`);
 
     const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
     if (!sw) throw new Error('Service worker not found');
 
-    const tabId = await sw.evaluate(async (): Promise<number> => {
-      const tabs = await chrome.tabs.query({ active: true });
-      return tabs[0]?.id ?? -1;
-    });
+    const tabId = await getTabId(sw);
 
-    await simulateContextMenuClick(sw, tabId, 'translate_de', 'Hello, how are you?');
+    // Inject the content script up front and wait for it to register, so the
+    // selection we make below is live when START_TRANSLATE is handled.
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, tabId);
+    await waitForContentScript(sw, tabId);
 
+    // Select the full text of an editable contenteditable div so
+    // captureSelectionTarget() resolves to an editable target (Replace/Append
+    // become available). The contenteditable holds German text.
+    const editable = page.locator('[data-testid="contenteditable-field"]');
+    await editable.click();
+    await editable.selectText();
+    const originalText = (await editable.textContent())?.trim() ?? '';
+    expect(originalText.length).toBeGreaterThan(0);
+
+    await simulateContextMenuClick(sw, tabId, 'translate_en', originalText);
+
+    // Loading overlay appears.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
-    await page.waitForFunction(
-      () => document.querySelector('[data-ct-overlay-host]') !== null,
-      { timeout: 120_000 },
-    );
+    // The overlay stays present from the loading state through the result
+    // state, so its presence alone cannot tell us the real Ollama TRANSLATE
+    // call has finished. The result state is inside a closed Shadow DOM and is
+    // not directly observable. Instead, poll: press Enter and check whether the
+    // overlay dismisses. Enter only triggers Replace (and dismissal) once the
+    // result state is in place (primaryKeyAction === doReplace); while the
+    // overlay is still loading, primaryKeyAction is null and Enter is a no-op.
+    // We retry for up to 120 s to absorb inference latency.
+    let dismissed = false;
+    for (let i = 0; i < 60; i++) {
+      await page.keyboard.press('Enter');
+      try {
+        await page.waitForFunction(
+          () => document.querySelector('[data-ct-overlay-host]') === null,
+          undefined,
+          { timeout: 2_000 },
+        );
+        dismissed = true;
+        break;
+      } catch {
+        // Still loading -- the result state has not rendered yet. Retry.
+      }
+    }
+    expect(dismissed).toBe(true);
+
+    // The contenteditable text changed: Replace substituted the English
+    // translation for the original German text.
+    const textAfterReplace = (await editable.textContent())?.trim() ?? '';
+    expect(textAfterReplace.length).toBeGreaterThan(0);
+    expect(textAfterReplace).not.toBe(originalText);
   });
 
-  test('translate_ro menu click shows overlay and completes', async ({ context, testServerBaseUrl }) => {
+  test('translate_ro click on a non-editable selection shows a result overlay (Close only, no Replace)', async ({ context, testServerBaseUrl }) => {
+    // When the selection is not editable, captureSelectionTarget() returns
+    // { kind: 'none' }, so the result overlay shows only a Close button (no
+    // Replace/Append). The result is still auto-copied to the clipboard.
     const page = await context.newPage();
     await page.goto(`${testServerBaseUrl}/test-page.html`);
 
     const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
     if (!sw) throw new Error('Service worker not found');
 
-    const tabId = await sw.evaluate(async (): Promise<number> => {
-      const tabs = await chrome.tabs.query({ active: true });
-      return tabs[0]?.id ?? -1;
-    });
+    const tabId = await getTabId(sw);
 
+    // No page selection is made -- captureSelectionTarget() sees no editable
+    // target, mirroring a right-click translate on static page text.
     await simulateContextMenuClick(sw, tabId, 'translate_ro', 'Hello, how are you?');
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
-    await page.waitForFunction(
-      () => document.querySelector('[data-ct-overlay-host]') !== null,
-      { timeout: 120_000 },
-    );
+    // The overlay stays present through loading -> result, so we poll: press
+    // Escape and check for dismissal. The Escape handler is only installed once
+    // renderResult/renderError runs; during the loading state Escape is a no-op.
+    // Retry for up to 120 s to absorb the real Ollama inference latency.
+    await page.evaluate(() => document.body.focus());
+    let dismissed = false;
+    for (let i = 0; i < 60; i++) {
+      await page.keyboard.press('Escape');
+      try {
+        await page.waitForFunction(
+          () => document.querySelector('[data-ct-overlay-host]') === null,
+          undefined,
+          { timeout: 2_000 },
+        );
+        dismissed = true;
+        break;
+      } catch {
+        // Still loading -- the result state has not rendered yet. Retry.
+      }
+    }
+    expect(dismissed).toBe(true);
   });
 
   test('translate_parent (parent item) produces no overlay -- no action on parent click', async ({ context, testServerBaseUrl }) => {
@@ -293,10 +422,7 @@ test.describe('Context menu: Translate', () => {
     const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
     if (!sw) throw new Error('Service worker not found');
 
-    const tabId = await sw.evaluate(async (): Promise<number> => {
-      const tabs = await chrome.tabs.query({ active: true });
-      return tabs[0]?.id ?? -1;
-    });
+    const tabId = await getTabId(sw);
 
     await simulateContextMenuClick(sw, tabId, 'translate_parent', 'Some text.');
 

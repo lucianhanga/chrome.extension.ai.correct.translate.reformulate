@@ -55,11 +55,30 @@ async function sendMessageToPage(
   );
 }
 
-async function waitForContentScript(page: import('@playwright/test').Page): Promise<void> {
-  await page.waitForFunction(
-    () => (window as unknown as Record<string, boolean>)['__ct_content_registered__'] === true,
-    { timeout: 5_000 },
-  );
+// Wait for the content script to register its message listener.
+//
+// The content script runs in Chrome's ISOLATED content-script world, so the
+// '__ct_content_registered__' marker it sets on window is NOT visible to
+// page.evaluate / page.waitForFunction (those run in the page's MAIN world).
+// The marker must be read inside the isolated world, reachable via
+// chrome.scripting.executeScript (defaults to world: 'ISOLATED').
+async function waitForContentScript(
+  sw: import('@playwright/test').Worker,
+  tabId: number,
+): Promise<void> {
+  for (let i = 0; i < 25; i++) {
+    const registered = await sw.evaluate(async (tid: number) => {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tid },
+        func: () =>
+          (window as unknown as Record<string, boolean>)['__ct_content_registered__'] === true,
+      });
+      return results[0]?.result === true;
+    }, tabId);
+    if (registered) return;
+    await new Promise<void>((r) => setTimeout(r, 200));
+  }
+  throw new Error('[error-handling-test] Content script did not register within 5 s.');
 }
 
 async function injectContentScript(
@@ -161,6 +180,7 @@ test.describe('Error handling: OLLAMA_UNREACHABLE', () => {
     // The overlay appears immediately with loading state.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
@@ -169,10 +189,46 @@ test.describe('Error handling: OLLAMA_UNREACHABLE', () => {
     // We wait up to 15 s for the error state to settle (connection refusal is fast).
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 15_000 },
     );
 
     // Restore the real endpoint.
+    await setStorageSetting(sw, { ollamaEndpoint: REAL_ENDPOINT });
+  });
+
+  test('translate overlay shows error when the configured endpoint is a dead port', async ({ context, testServerBaseUrl }) => {
+    // The translate context-menu path runs runTranslateFlow inside the content
+    // script: it shows the "Translating…" loading overlay, then the TRANSLATE
+    // request fails against the dead port and the content script transitions the
+    // overlay to the error state. No detection/confirm step is involved.
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    await setStorageSetting(sw, { ollamaEndpoint: DEAD_ENDPOINT });
+
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const tabId = await getTabId(sw);
+
+    await simulateContextMenuClick(sw, tabId, 'translate_en', 'Hallo, wie geht es dir?');
+
+    // Loading overlay appears immediately.
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 10_000 },
+    );
+
+    // The TRANSLATE fetch to the dead port fails fast; the overlay stays present
+    // through the loading -> error transition.
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 15_000 },
+    );
+
     await setStorageSetting(sw, { ollamaEndpoint: REAL_ENDPOINT });
   });
 
@@ -237,6 +293,7 @@ test.describe('Error handling: MODEL_NOT_FOUND', () => {
     // Overlay appears with loading state immediately.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
 
@@ -244,6 +301,7 @@ test.describe('Error handling: MODEL_NOT_FOUND', () => {
     // Host element stays present. We wait up to 30 s for the error response.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 30_000 },
     );
 
@@ -305,6 +363,7 @@ test.describe('Error handling: INPUT_TOO_LONG', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 10_000 },
     );
   });
@@ -319,7 +378,7 @@ test.describe('Error handling: INPUT_TOO_LONG', () => {
 
     const tabId = await getTabId(sw);
     await injectContentScript(sw, tabId);
-    await waitForContentScript(page);
+    await waitForContentScript(sw, tabId);
 
     await sendMessageToPage(sw, tabId, {
       type: 'SHOW_ERROR',
@@ -331,6 +390,7 @@ test.describe('Error handling: INPUT_TOO_LONG', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
   });
@@ -367,7 +427,7 @@ test.describe('Error handling: REQUEST_TIMEOUT', () => {
 
     const tabId = await getTabId(sw);
     await injectContentScript(sw, tabId);
-    await waitForContentScript(page);
+    await waitForContentScript(sw, tabId);
 
     await sendMessageToPage(sw, tabId, {
       type: 'SHOW_ERROR',
@@ -379,6 +439,7 @@ test.describe('Error handling: REQUEST_TIMEOUT', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
   });

@@ -2,7 +2,7 @@
 // End-to-end tests for the in-page result overlay (Shadow DOM).
 //
 // What is covered:
-//   - Loading overlay appears in the correct state
+//   - Loading overlay appears in the correct state (correct and translate)
 //   - Result overlay: shows original text, result text, Accept and Reject buttons
 //   - Accept in a textarea replaces the selected text (observed via .value)
 //   - Accept in a non-editable context: "Copied!" toast appears
@@ -11,6 +11,16 @@
 //   - Keyboard: Enter accepts the result
 //   - Error overlay: shown when Ollama returns an error code
 //   - Only one overlay exists at a time (singleton)
+//   - Translate result overlay: renders for a SHOW_RESULT with action 'translate'
+//     and is dismissible via Escape / Close
+//
+// Translate flow note (post-rollback):
+//   The translate context-menu path runs the translate-and-show-result flow
+//   inside the content script (START_TRANSLATE -> runTranslateFlow). There is no
+//   language-detection or confirm step. The full real-Ollama translate flow,
+//   including the Replace action, is covered in context-menu.test.ts. This file
+//   covers the overlay's translate result-state rendering via a direct
+//   SHOW_RESULT injection (no Ollama).
 //
 // Ollama approach: NONE. These tests exercise the content script's message-handling
 // and overlay-rendering code in isolation. Messages are injected directly via the
@@ -40,11 +50,29 @@ import { test, expect } from './fixtures/extension-fixture';
 // ---------------------------------------------------------------------------
 
 // Wait for the content script to register its message listener.
-async function waitForContentScript(page: import('@playwright/test').Page): Promise<void> {
-  await page.waitForFunction(
-    () => (window as unknown as Record<string, boolean>)['__ct_content_registered__'] === true,
-    { timeout: 5_000 },
-  );
+//
+// The content script runs in Chrome's ISOLATED content-script world, so the
+// '__ct_content_registered__' marker it sets on window is NOT visible to
+// page.evaluate / page.waitForFunction (those run in the page's MAIN world).
+// Reading the marker therefore has to happen inside the isolated world, which
+// is reachable via chrome.scripting.executeScript (defaults to world: 'ISOLATED').
+async function waitForContentScript(
+  sw: import('@playwright/test').Worker,
+  tabId: number,
+): Promise<void> {
+  for (let i = 0; i < 25; i++) {
+    const registered = await sw.evaluate(async (tid: number) => {
+      const results = await chrome.scripting.executeScript({
+        target: { tabId: tid },
+        func: () =>
+          (window as unknown as Record<string, boolean>)['__ct_content_registered__'] === true,
+      });
+      return results[0]?.result === true;
+    }, tabId);
+    if (registered) return;
+    await new Promise<void>((r) => setTimeout(r, 200));
+  }
+  throw new Error('[overlay-test] Content script did not register within 5 s.');
 }
 
 // Send a typed message to a tab via the service worker context.
@@ -85,7 +113,7 @@ test.describe('Overlay: message-driven rendering', () => {
       });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
 
     await sendMessageToPage(sw, realTabId, {
       type: 'SHOW_LOADING',
@@ -114,7 +142,7 @@ test.describe('Overlay: message-driven rendering', () => {
       await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
 
     await sendMessageToPage(sw, realTabId, {
       type: 'SHOW_RESULT',
@@ -127,6 +155,7 @@ test.describe('Overlay: message-driven rendering', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
 
@@ -152,7 +181,7 @@ test.describe('Overlay: message-driven rendering', () => {
       await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
 
     await sendMessageToPage(sw, realTabId, {
       type: 'SHOW_ERROR',
@@ -164,6 +193,7 @@ test.describe('Overlay: message-driven rendering', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
   });
@@ -184,7 +214,7 @@ test.describe('Overlay: message-driven rendering', () => {
       await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
 
     await sendMessageToPage(sw, realTabId, {
       type: 'SHOW_LOADING',
@@ -193,6 +223,7 @@ test.describe('Overlay: message-driven rendering', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
 
@@ -200,6 +231,7 @@ test.describe('Overlay: message-driven rendering', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') === null,
+      undefined,
       { timeout: 5_000 },
     );
   });
@@ -220,7 +252,7 @@ test.describe('Overlay: message-driven rendering', () => {
       await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
 
     await sendMessageToPage(sw, realTabId, {
       type: 'SHOW_LOADING',
@@ -229,6 +261,7 @@ test.describe('Overlay: message-driven rendering', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
 
@@ -265,7 +298,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
       await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
 
     await sendMessageToPage(sw, realTabId, {
       type: 'SHOW_RESULT',
@@ -278,6 +311,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
 
@@ -285,6 +319,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') === null,
+      undefined,
       { timeout: 5_000 },
     );
   });
@@ -305,7 +340,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
       await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
 
     // Focus document.body so Enter triggers the accept path (not a form field handler).
     await page.evaluate(() => document.body.focus());
@@ -321,6 +356,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
 
@@ -330,6 +366,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') === null,
+      undefined,
       { timeout: 5_000 },
     );
   });
@@ -350,7 +387,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
       await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
 
     const textarea = page.locator('[data-testid="textarea-field"]');
     await textarea.click();
@@ -368,6 +405,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
 
@@ -375,6 +413,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') === null,
+      undefined,
       { timeout: 3_000 },
     );
 
@@ -399,7 +438,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
       await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
     }, realTabId);
 
-    await waitForContentScript(page);
+    await waitForContentScript(sw, realTabId);
     await page.evaluate(() => document.body.focus());
 
     await sendMessageToPage(sw, realTabId, {
@@ -413,6 +452,7 @@ test.describe('Overlay: Accept and Reject behavior', () => {
 
     await page.waitForFunction(
       () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
       { timeout: 5_000 },
     );
 
@@ -421,6 +461,130 @@ test.describe('Overlay: Accept and Reject behavior', () => {
     // showCopiedToast() appends a [data-ct-toast-host] element to document.body.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-toast-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite: Overlay translate result-state rendering
+//
+// These tests render the translate result overlay via a direct SHOW_RESULT
+// message (action: 'translate'). The full real-Ollama translate flow, including
+// the loading overlay and the Replace action, is covered in context-menu.test.ts.
+// Here we verify the overlay's translate result-state renders and dismisses.
+// ---------------------------------------------------------------------------
+
+test.describe('Overlay: translate result rendering', () => {
+  test('SHOW_LOADING with action translate renders the loading overlay (host attached)', async ({ context, testServerBaseUrl }) => {
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    const realTabId = await sw.evaluate(async (): Promise<number> => {
+      const tabs = await chrome.tabs.query({ active: true });
+      return tabs[0]?.id ?? -1;
+    });
+
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, realTabId);
+
+    await waitForContentScript(sw, realTabId);
+
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_LOADING',
+      payload: { action: 'translate', originalText: 'Hallo, wie geht es dir?' },
+    });
+
+    const hostExists = await page.evaluate(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+    );
+    expect(hostExists).toBe(true);
+  });
+
+  test('SHOW_RESULT with action translate renders the result overlay (host attached)', async ({ context, testServerBaseUrl }) => {
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    const realTabId = await sw.evaluate(async (): Promise<number> => {
+      const tabs = await chrome.tabs.query({ active: true });
+      return tabs[0]?.id ?? -1;
+    });
+
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, realTabId);
+
+    await waitForContentScript(sw, realTabId);
+
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_RESULT',
+      payload: {
+        action: 'translate',
+        originalText: 'Hello, how are you?',
+        resultText: 'Hallo, wie geht es dir?',
+        targetLanguage: 'German',
+      },
+    });
+
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+
+    const overlayPresent = await page.evaluate(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+    );
+    expect(overlayPresent).toBe(true);
+  });
+
+  test('Escape dismisses a translate result overlay', async ({ context, testServerBaseUrl }) => {
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    const realTabId = await sw.evaluate(async (): Promise<number> => {
+      const tabs = await chrome.tabs.query({ active: true });
+      return tabs[0]?.id ?? -1;
+    });
+
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, realTabId);
+
+    await waitForContentScript(sw, realTabId);
+
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_RESULT',
+      payload: {
+        action: 'translate',
+        originalText: 'Hello, how are you?',
+        resultText: 'Buna, ce mai faci?',
+        targetLanguage: 'Romanian',
+      },
+    });
+
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+
+    await page.keyboard.press('Escape');
+
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') === null,
+      undefined,
       { timeout: 5_000 },
     );
   });

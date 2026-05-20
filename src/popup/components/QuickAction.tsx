@@ -1,13 +1,11 @@
 // src/popup/components/QuickAction.tsx
 // Text area + action buttons for quick correction or translation from the popup.
-// Translation is a multi-step flow: detect language -> confirm/correct it -> translate.
 
 import React, { useState } from 'react';
 import type { SupportedLanguage, ActionType } from '../../shared/types.ts';
 import type {
   SuccessResponse,
   ErrorResponse,
-  DetectLanguageResponse,
   ServiceWorkerResponse,
 } from '../../shared/messages.ts';
 import { MAX_INPUT_LENGTH } from '../../shared/constants.ts';
@@ -25,9 +23,6 @@ interface ResultState {
   action: ActionType;
 }
 
-// idle -> detecting -> confirm -> translating -> idle
-type TranslatePhase = 'idle' | 'detecting' | 'confirm' | 'translating';
-
 export function QuickAction({
   defaultTargetLanguage,
   sourceLanguageOverride,
@@ -35,18 +30,15 @@ export function QuickAction({
   const [inputText, setInputText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState<SupportedLanguage>(defaultTargetLanguage);
   const [loading, setLoading] = useState(false);
-  const [translatePhase, setTranslatePhase] = useState<TranslatePhase>('idle');
-  const [detectedLanguage, setDetectedLanguage] = useState<SupportedLanguage | null>(null);
   const [result, setResult] = useState<ResultState | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const charCount = inputText.length;
   const overLimit = charCount > MAX_INPUT_LENGTH;
   const isEmpty = inputText.trim() === '';
-  const busy = loading || translatePhase !== 'idle';
 
   const handleCorrect = async (): Promise<void> => {
-    if (isEmpty || overLimit || busy) return;
+    if (isEmpty || overLimit || loading) return;
     setLoading(true);
     setError(null);
     setResult(null);
@@ -72,54 +64,18 @@ export function QuickAction({
     }
   };
 
-  // Translate step 1: detect the source language (or use a pinned override).
+  // Translate. The source language is auto-detected by the model during the
+  // call, unless a source-language override is configured in settings.
   const handleTranslate = async (): Promise<void> => {
-    if (isEmpty || overLimit || busy) return;
+    if (isEmpty || overLimit || loading) return;
+    setLoading(true);
     setError(null);
     setResult(null);
-
-    // A pinned source-language override skips detection.
-    if (sourceLanguageOverride !== null) {
-      setDetectedLanguage(sourceLanguageOverride);
-      setTranslatePhase('confirm');
-      return;
-    }
-
-    setDetectedLanguage(null);
-    setTranslatePhase('detecting');
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'DETECT_LANGUAGE',
-        payload: { text: inputText },
-      }) as ServiceWorkerResponse;
-
-      if (isDetectLanguageResponse(response)) {
-        setDetectedLanguage(response.detectedLanguage);
-        setTranslatePhase('confirm');
-      } else if (isErrorResponse(response)) {
-        setError(response.error);
-        setTranslatePhase('idle');
-      } else {
-        setError('Unexpected response from service worker.');
-        setTranslatePhase('idle');
-      }
-    } catch (err) {
-      setError('Failed to communicate with extension service worker.');
-      setTranslatePhase('idle');
-      console.error('[QuickAction] detect error:', err);
-    }
-  };
-
-  // Translate step 2: translate with the confirmed source language.
-  const handleConfirmTranslate = async (): Promise<void> => {
-    if (detectedLanguage === null) return;
-    setTranslatePhase('translating');
-    setError(null);
 
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'TRANSLATE',
-        payload: { text: inputText, targetLanguage, sourceLanguage: detectedLanguage },
+        payload: { text: inputText, targetLanguage, sourceLanguage: sourceLanguageOverride },
       }) as ServiceWorkerResponse;
 
       if (isSuccessResponse(response)) {
@@ -133,13 +89,8 @@ export function QuickAction({
       setError('Failed to communicate with extension service worker.');
       console.error('[QuickAction] translate error:', err);
     } finally {
-      setTranslatePhase('idle');
+      setLoading(false);
     }
-  };
-
-  const handleCancelTranslate = (): void => {
-    setTranslatePhase('idle');
-    setDetectedLanguage(null);
   };
 
   const handleClear = (): void => {
@@ -163,8 +114,6 @@ export function QuickAction({
     setError(null);
   };
 
-  const inFlightLabel = translatePhase !== 'idle' ? 'Translating...' : 'Translate';
-
   return (
     <div className="flex flex-col gap-3">
       {/* Text input */}
@@ -174,7 +123,7 @@ export function QuickAction({
         </label>
         <textarea
           value={inputText}
-          disabled={busy}
+          disabled={loading}
           onChange={(e) => {
             setInputText(e.target.value);
             setResult(null);
@@ -209,7 +158,7 @@ export function QuickAction({
           if (v !== null) setTargetLanguage(v);
         }}
         includeAutoDetect={false}
-        disabled={busy}
+        disabled={loading}
       />
 
       {/* Action buttons */}
@@ -220,7 +169,7 @@ export function QuickAction({
               console.error('[QuickAction] handleCorrect unhandled:', err);
             });
           }}
-          disabled={isEmpty || overLimit || busy}
+          disabled={isEmpty || overLimit || loading}
           className="
             flex-1 py-2 rounded-md text-sm font-semibold
             bg-[#313244] text-[#cdd6f4]
@@ -238,7 +187,7 @@ export function QuickAction({
               console.error('[QuickAction] handleTranslate unhandled:', err);
             });
           }}
-          disabled={isEmpty || overLimit || busy}
+          disabled={isEmpty || overLimit || loading}
           className="
             flex-1 py-2 rounded-md text-sm font-semibold
             bg-[#313244] text-[#cdd6f4]
@@ -248,71 +197,12 @@ export function QuickAction({
             disabled:opacity-40 disabled:cursor-not-allowed
           "
         >
-          {inFlightLabel}
+          {loading ? 'Processing...' : 'Translate'}
         </button>
       </div>
 
-      {/* Detecting indicator */}
-      {translatePhase === 'detecting' && (
-        <div className="flex items-center justify-center gap-2 py-2">
-          <div
-            className="w-4 h-4 rounded-full border-2 border-[#313244] border-t-[#22c55e] animate-spin"
-            aria-label="Loading"
-          />
-          <span className="text-xs text-[#a6adc8]">Detecting language...</span>
-        </div>
-      )}
-
-      {/* Language confirmation step */}
-      {translatePhase === 'confirm' && detectedLanguage !== null && (
-        <div
-          data-testid="language-confirm"
-          className="flex flex-col gap-2 p-2 rounded-md border border-[#313244] bg-[#181825]"
-        >
-          <LanguageSelector
-            label="Detected language"
-            value={detectedLanguage}
-            onChange={(v) => {
-              if (v !== null) setDetectedLanguage(v);
-            }}
-            includeAutoDetect={false}
-          />
-          <div className="flex gap-2">
-            <button
-              data-testid="confirm-translate"
-              onClick={() => {
-                handleConfirmTranslate().catch((err: unknown) => {
-                  console.error('[QuickAction] handleConfirmTranslate unhandled:', err);
-                });
-              }}
-              className="
-                flex-1 py-1.5 rounded-md text-sm font-semibold
-                bg-[#22c55e] text-[#1e1e2e]
-                hover:brightness-110 active:brightness-90
-                transition-all duration-100
-                focus:outline-none focus:ring-2 focus:ring-[#22c55e] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]
-              "
-            >
-              Translate
-            </button>
-            <button
-              onClick={handleCancelTranslate}
-              className="
-                flex-1 py-1.5 rounded-md text-sm font-semibold
-                border border-[#45475a] text-[#a6adc8]
-                hover:bg-[#313244] hover:text-[#cdd6f4]
-                transition-colors duration-100
-                focus:outline-none focus:ring-2 focus:ring-[#585b70] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]
-              "
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Processing indicator */}
-      {(loading || translatePhase === 'translating') && (
+      {loading && (
         <div className="flex items-center justify-center gap-2 py-2">
           <div
             className="w-4 h-4 rounded-full border-2 border-[#313244] border-t-[#22c55e] animate-spin"
@@ -323,7 +213,7 @@ export function QuickAction({
       )}
 
       {/* Error display */}
-      {error && !busy && (
+      {error && !loading && (
         <div
           data-testid="error-banner"
           className="flex items-start gap-2 p-2 rounded-md border text-sm"
@@ -335,7 +225,7 @@ export function QuickAction({
       )}
 
       {/* Result display */}
-      {result && !busy && (
+      {result && !loading && (
         <ResultDisplay
           originalText={result.originalText}
           resultText={result.resultText}
@@ -360,8 +250,4 @@ function isSuccessResponse(r: ServiceWorkerResponse): r is SuccessResponse {
 
 function isErrorResponse(r: ServiceWorkerResponse): r is ErrorResponse {
   return r.success === false;
-}
-
-function isDetectLanguageResponse(r: ServiceWorkerResponse): r is DetectLanguageResponse {
-  return r.success === true && 'detectedLanguage' in r;
 }

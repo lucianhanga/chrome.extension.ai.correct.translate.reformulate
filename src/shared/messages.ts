@@ -29,13 +29,6 @@ export interface TranslateRequest {
   };
 }
 
-export interface DetectLanguageRequest {
-  type: 'DETECT_LANGUAGE';
-  payload: {
-    text: string;
-  };
-}
-
 export interface HealthCheckRequest {
   type: 'HEALTH_CHECK';
 }
@@ -54,7 +47,6 @@ export interface SaveSettingsRequest {
 export type PopupToServiceWorkerMessage =
   | CorrectGrammarRequest
   | TranslateRequest
-  | DetectLanguageRequest
   | HealthCheckRequest
   | GetSettingsRequest
   | SaveSettingsRequest;
@@ -117,11 +109,6 @@ export interface SuccessResponse {
   result: string;
 }
 
-export interface DetectLanguageResponse {
-  success: true;
-  detectedLanguage: SupportedLanguage;
-}
-
 export interface ErrorResponse {
   success: false;
   error: string;
@@ -146,7 +133,6 @@ export interface SaveSettingsResponse {
 
 export type ServiceWorkerResponse =
   | SuccessResponse
-  | DetectLanguageResponse
   | ErrorResponse
   | HealthCheckResponse
   | SettingsResponse
@@ -159,7 +145,6 @@ export type ServiceWorkerResponse =
 const VALID_TYPES: ReadonlySet<string> = new Set([
   'CORRECT_GRAMMAR',
   'TRANSLATE',
-  'DETECT_LANGUAGE',
   'HEALTH_CHECK',
   'GET_SETTINGS',
   'SAVE_SETTINGS',
@@ -205,14 +190,6 @@ export function isTranslateRequest(msg: unknown): msg is TranslateRequest {
     isSupportedLanguage(payload['targetLanguage']) &&
     (payload['sourceLanguage'] === null || isSupportedLanguage(payload['sourceLanguage']))
   );
-}
-
-export function isDetectLanguageRequest(msg: unknown): msg is DetectLanguageRequest {
-  if (typeof msg !== 'object' || msg === null) return false;
-  const m = msg as Record<string, unknown>;
-  if (m['type'] !== 'DETECT_LANGUAGE') return false;
-  const payload = m['payload'] as Record<string, unknown> | undefined;
-  return typeof payload?.['text'] === 'string';
 }
 
 export function isHealthCheckRequest(msg: unknown): msg is HealthCheckRequest {
