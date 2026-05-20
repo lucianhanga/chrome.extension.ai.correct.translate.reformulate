@@ -11,10 +11,11 @@ const APPEND_SEPARATOR = ' ';
 // Captured selection target
 // ============================================================
 
-// The translate flow adds a confirmation click between selecting text and
-// applying the result; that click would collapse the live page selection.
-// The selection is therefore captured up front, and Replace/Append operate on
-// the captured target rather than a live window.getSelection().
+// The translate flow shows a loading overlay and then a result overlay between
+// selecting text and applying the result; interacting with the overlay can
+// collapse the live page selection. The selection is therefore captured up
+// front, and Replace/Append operate on the captured target rather than a live
+// window.getSelection().
 export type CapturedTarget =
   | { kind: 'input'; element: HTMLTextAreaElement | HTMLInputElement; start: number; end: number }
   | { kind: 'contenteditable'; range: Range }

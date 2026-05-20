@@ -2,7 +2,7 @@
 // End-to-end tests for the in-page result overlay (Shadow DOM).
 //
 // What is covered:
-//   - Loading overlay appears in the correct state
+//   - Loading overlay appears in the correct state (correct and translate)
 //   - Result overlay: shows original text, result text, Accept and Reject buttons
 //   - Accept in a textarea replaces the selected text (observed via .value)
 //   - Accept in a non-editable context: "Copied!" toast appears
@@ -11,6 +11,16 @@
 //   - Keyboard: Enter accepts the result
 //   - Error overlay: shown when Ollama returns an error code
 //   - Only one overlay exists at a time (singleton)
+//   - Translate result overlay: renders for a SHOW_RESULT with action 'translate'
+//     and is dismissible via Escape / Close
+//
+// Translate flow note (post-rollback):
+//   The translate context-menu path runs the translate-and-show-result flow
+//   inside the content script (START_TRANSLATE -> runTranslateFlow). There is no
+//   language-detection or confirm step. The full real-Ollama translate flow,
+//   including the Replace action, is covered in context-menu.test.ts. This file
+//   covers the overlay's translate result-state rendering via a direct
+//   SHOW_RESULT injection (no Ollama).
 //
 // Ollama approach: NONE. These tests exercise the content script's message-handling
 // and overlay-rendering code in isolation. Messages are injected directly via the
@@ -451,6 +461,129 @@ test.describe('Overlay: Accept and Reject behavior', () => {
     // showCopiedToast() appends a [data-ct-toast-host] element to document.body.
     await page.waitForFunction(
       () => document.querySelector('[data-ct-toast-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Suite: Overlay translate result-state rendering
+//
+// These tests render the translate result overlay via a direct SHOW_RESULT
+// message (action: 'translate'). The full real-Ollama translate flow, including
+// the loading overlay and the Replace action, is covered in context-menu.test.ts.
+// Here we verify the overlay's translate result-state renders and dismisses.
+// ---------------------------------------------------------------------------
+
+test.describe('Overlay: translate result rendering', () => {
+  test('SHOW_LOADING with action translate renders the loading overlay (host attached)', async ({ context, testServerBaseUrl }) => {
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    const realTabId = await sw.evaluate(async (): Promise<number> => {
+      const tabs = await chrome.tabs.query({ active: true });
+      return tabs[0]?.id ?? -1;
+    });
+
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, realTabId);
+
+    await waitForContentScript(sw, realTabId);
+
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_LOADING',
+      payload: { action: 'translate', originalText: 'Hallo, wie geht es dir?' },
+    });
+
+    const hostExists = await page.evaluate(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+    );
+    expect(hostExists).toBe(true);
+  });
+
+  test('SHOW_RESULT with action translate renders the result overlay (host attached)', async ({ context, testServerBaseUrl }) => {
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    const realTabId = await sw.evaluate(async (): Promise<number> => {
+      const tabs = await chrome.tabs.query({ active: true });
+      return tabs[0]?.id ?? -1;
+    });
+
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, realTabId);
+
+    await waitForContentScript(sw, realTabId);
+
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_RESULT',
+      payload: {
+        action: 'translate',
+        originalText: 'Hello, how are you?',
+        resultText: 'Hallo, wie geht es dir?',
+        targetLanguage: 'German',
+      },
+    });
+
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+
+    const overlayPresent = await page.evaluate(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+    );
+    expect(overlayPresent).toBe(true);
+  });
+
+  test('Escape dismisses a translate result overlay', async ({ context, testServerBaseUrl }) => {
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    const realTabId = await sw.evaluate(async (): Promise<number> => {
+      const tabs = await chrome.tabs.query({ active: true });
+      return tabs[0]?.id ?? -1;
+    });
+
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, realTabId);
+
+    await waitForContentScript(sw, realTabId);
+
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_RESULT',
+      payload: {
+        action: 'translate',
+        originalText: 'Hello, how are you?',
+        resultText: 'Buna, ce mai faci?',
+        targetLanguage: 'Romanian',
+      },
+    });
+
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+
+    await page.keyboard.press('Escape');
+
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') === null,
       undefined,
       { timeout: 5_000 },
     );

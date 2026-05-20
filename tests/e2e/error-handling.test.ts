@@ -197,6 +197,41 @@ test.describe('Error handling: OLLAMA_UNREACHABLE', () => {
     await setStorageSetting(sw, { ollamaEndpoint: REAL_ENDPOINT });
   });
 
+  test('translate overlay shows error when the configured endpoint is a dead port', async ({ context, testServerBaseUrl }) => {
+    // The translate context-menu path runs runTranslateFlow inside the content
+    // script: it shows the "Translating…" loading overlay, then the TRANSLATE
+    // request fails against the dead port and the content script transitions the
+    // overlay to the error state. No detection/confirm step is involved.
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    await setStorageSetting(sw, { ollamaEndpoint: DEAD_ENDPOINT });
+
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const tabId = await getTabId(sw);
+
+    await simulateContextMenuClick(sw, tabId, 'translate_en', 'Hallo, wie geht es dir?');
+
+    // Loading overlay appears immediately.
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 10_000 },
+    );
+
+    // The TRANSLATE fetch to the dead port fails fast; the overlay stays present
+    // through the loading -> error transition.
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 15_000 },
+    );
+
+    await setStorageSetting(sw, { ollamaEndpoint: REAL_ENDPOINT });
+  });
+
   test('popup shows error when the configured endpoint is a dead port and Correct is clicked', async ({
     openPopup,
     extensionId,

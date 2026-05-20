@@ -6,12 +6,19 @@
 //   - Status indicator reflects Ollama health (connected, unreachable, model-missing)
 //   - Quick Action: Correct button sends a request and displays a non-empty result
 //   - Quick Action: Translate button sends a request and displays a non-empty result
+//   - Quick Action: translate result offers Copy + Replace + Append + Clear
+//   - Quick Action: Replace puts the translation into the input textarea
+//   - Quick Action: Append keeps the original and adds the translation after it
 //   - Quick Action: error state is shown when the configured endpoint is unreachable
 //   - Quick Action: character limit guard prevents submission and shows counter
 //   - Quick Action: empty input prevents submission
 //   - Settings section: opens/closes via toggle
 //   - Settings section: Save persists values and refreshes status
 //   - Result display: Copy button and clear (Reject) button
+//
+// Translate flow note (post-rollback): translation auto-detects the source
+// language during the model call. The popup has no language-detection or
+// confirm step; the Translate button goes straight to the result.
 //
 // Ollama approach: REAL Ollama at http://localhost:11434 with model qwen3:14b.
 // global-setup.ts verifies reachability and warms up the model before any test runs.
@@ -311,6 +318,68 @@ test.describe('Popup: Quick Action -- Translate', () => {
     await resultContainer.waitFor({ state: 'visible', timeout: 120_000 });
     const resultText = await resultContainer.textContent();
     expect((resultText ?? '').trim().length).toBeGreaterThan(0);
+  });
+
+  test('translate result shows Copy, Replace, Append and Clear actions', async ({ openPopup }) => {
+    // The rolled-back translate flow keeps Replace/Append plus the auto-copy.
+    // In the popup the result panel shows Copy + Replace + Append + Clear.
+    const popup = await openPopup();
+    await popup.locator('textarea').fill('Hello, how are you today?');
+    await popup.getByRole('button', { name: /^Translate$/i }).click();
+
+    const resultContainer = popup.locator('[data-testid="result-text"]');
+    await resultContainer.waitFor({ state: 'visible', timeout: 120_000 });
+
+    await expect(popup.locator('[data-testid="result-replace"]')).toBeVisible();
+    await expect(popup.locator('[data-testid="result-append"]')).toBeVisible();
+    await expect(popup.getByRole('button', { name: /^Copy$/i })).toBeVisible();
+    await expect(popup.getByRole('button', { name: /^Clear$/i })).toBeVisible();
+  });
+
+  test('Replace puts the translation into the input textarea and clears the result', async ({ openPopup }) => {
+    const popup = await openPopup();
+    const textarea = popup.locator('textarea');
+    // German source text with the default target language (English) so the
+    // translation is clearly different from the input. The source language is
+    // auto-detected by the model -- no detection/confirm step in the popup.
+    const originalText = 'Hallo, wie geht es dir heute?';
+    await textarea.fill(originalText);
+    await popup.getByRole('button', { name: /^Translate$/i }).click();
+
+    const resultContainer = popup.locator('[data-testid="result-text"]');
+    await resultContainer.waitFor({ state: 'visible', timeout: 120_000 });
+    const translation = ((await resultContainer.textContent()) ?? '').trim();
+    expect(translation.length).toBeGreaterThan(0);
+
+    await popup.locator('[data-testid="result-replace"]').click();
+
+    // Replace sets the textarea to the translation and dismisses the result panel.
+    await expect(resultContainer).not.toBeVisible();
+    const valueAfterReplace = (await textarea.inputValue()).trim();
+    expect(valueAfterReplace.length).toBeGreaterThan(0);
+    expect(valueAfterReplace).not.toBe(originalText);
+  });
+
+  test('Append keeps the original text and adds the translation after it', async ({ openPopup }) => {
+    const popup = await openPopup();
+    const textarea = popup.locator('textarea');
+    const originalText = 'Hallo, wie geht es dir heute?';
+    await textarea.fill(originalText);
+    await popup.getByRole('button', { name: /^Translate$/i }).click();
+
+    const resultContainer = popup.locator('[data-testid="result-text"]');
+    await resultContainer.waitFor({ state: 'visible', timeout: 120_000 });
+    const translation = ((await resultContainer.textContent()) ?? '').trim();
+    expect(translation.length).toBeGreaterThan(0);
+
+    await popup.locator('[data-testid="result-append"]').click();
+
+    // Append keeps the original and adds the translation after it; the result
+    // panel is dismissed.
+    await expect(resultContainer).not.toBeVisible();
+    const valueAfterAppend = await textarea.inputValue();
+    expect(valueAfterAppend.startsWith(originalText)).toBe(true);
+    expect(valueAfterAppend.length).toBeGreaterThan(originalText.length);
   });
 });
 
