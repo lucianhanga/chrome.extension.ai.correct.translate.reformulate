@@ -406,26 +406,6 @@ test.describe('Popup: Settings section', () => {
     await popup.getByRole('button', { name: /Save Settings/i }).click();
     await expect(popup.locator('text=Settings saved.')).toBeVisible({ timeout: 5_000 });
   });
-
-  test('source language quick-set buttons are visible', async ({ openPopup }) => {
-    const popup = await openPopup();
-    await popup.locator('[data-testid="settings-toggle"]').click();
-    await expect(popup.getByRole('button', { name: /^Auto$/i })).toBeVisible();
-    await expect(popup.getByRole('button', { name: /^English$/i })).toBeVisible();
-    await expect(popup.getByRole('button', { name: /^German$/i })).toBeVisible();
-    await expect(popup.getByRole('button', { name: /^Romanian$/i })).toBeVisible();
-  });
-
-  test('selecting a source language quick-set highlights that button', async ({ openPopup }) => {
-    const popup = await openPopup();
-    await popup.locator('[data-testid="settings-toggle"]').click();
-    await popup.getByRole('button', { name: /^German$/i }).click();
-    const germanBtn = popup.getByRole('button', { name: /^German$/i });
-    // Use toHaveCSS (which retries automatically) rather than evaluate+getComputedStyle
-    // (which does not retry and can race against React re-render).
-    // #22c55e converts to rgb(34, 197, 94).
-    await expect(germanBtn).toHaveCSS('background-color', 'rgb(34, 197, 94)');
-  });
 });
 
 // ---------------------------------------------------------------------------

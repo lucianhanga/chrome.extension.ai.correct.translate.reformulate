@@ -71,7 +71,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   ollamaEndpoint: DEFAULT_OLLAMA_ENDPOINT,
   model: DEFAULT_MODEL,
   defaultTargetLanguage: 'English',
-  sourceLanguageOverride: null,
   provider: 'ollama',
   openaiModel: DEFAULT_OPENAI_MODEL,
   openaiApiKey: '',

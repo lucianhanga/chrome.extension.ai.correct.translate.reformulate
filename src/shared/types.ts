@@ -22,13 +22,11 @@ export type OpenAIModel = 'gpt-5.4-nano' | 'gpt-5-nano';
 // ============================================================
 
 export interface ExtensionSettings {
-  // Existing (unchanged)
   ollamaEndpoint: string;
   model: string;                        // Ollama model
   defaultTargetLanguage: SupportedLanguage;
-  sourceLanguageOverride: SupportedLanguage | null;
 
-  // New: provider selection
+  // Provider selection
   provider: LLMProvider;                // discriminator; default 'ollama'
   openaiModel: OpenAIModel;             // default 'gpt-5-nano'
   openaiApiKey: string;                 // default '' (empty = not configured)

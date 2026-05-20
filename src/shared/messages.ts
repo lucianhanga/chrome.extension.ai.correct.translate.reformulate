@@ -26,7 +26,6 @@ export interface TranslateRequest {
   payload: {
     text: string;
     targetLanguage: SupportedLanguage;
-    sourceLanguage: SupportedLanguage | null;
   };
 }
 
@@ -206,8 +205,7 @@ export function isTranslateRequest(msg: unknown): msg is TranslateRequest {
   if (!payload) return false;
   return (
     typeof payload['text'] === 'string' &&
-    isSupportedLanguage(payload['targetLanguage']) &&
-    (payload['sourceLanguage'] === null || isSupportedLanguage(payload['sourceLanguage']))
+    isSupportedLanguage(payload['targetLanguage'])
   );
 }
 

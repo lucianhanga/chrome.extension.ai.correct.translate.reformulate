@@ -148,7 +148,7 @@ async function runTranslateFlow(
   try {
     response = (await chrome.runtime.sendMessage({
       type: 'TRANSLATE',
-      payload: { text: originalText, targetLanguage, sourceLanguage: null },
+      payload: { text: originalText, targetLanguage },
     })) as ServiceWorkerResponse;
   } catch (err) {
     console.error('[content] translate request failed:', err);

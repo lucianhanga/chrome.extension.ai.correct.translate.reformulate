@@ -197,7 +197,7 @@ A React application rendered in the extension popup. It provides:
   - Ollama: endpoint URL and model selector dropdown
   - OpenAI: model selector (`gpt-5.4-nano`, `gpt-5-nano`) and an API key field
     with a `Validate` button
-  - Common: default target language and source-language override
+  - Common: default target language
 - **Quick action section**: Text input area, action buttons (Correct, Translate),
   target language dropdown
 - **Status indicator**: connection status for the active provider (green dot =
@@ -294,7 +294,7 @@ OpenAI is also supported.
 
 | Permission | Type | Justification | Alternatives Considered |
 |------------|------|---------------|------------------------|
-| `storage` | API | Store user settings: provider choice, Ollama endpoint and model, OpenAI model and API key, consent flag, default target language, sticky source language override | None -- required for settings persistence |
+| `storage` | API | Store user settings: provider choice, Ollama endpoint and model, OpenAI model and API key, consent flag, default target language | None -- required for settings persistence |
 | `activeTab` | API | Access the active tab to read selected text and inject the content script when user triggers a context menu action | `<all_urls>` host permission -- rejected as overly broad |
 | `contextMenus` | API | Register right-click menu items for "Correct Grammar" and "Translate to" actions | Popup-only UI -- rejected because context menu is a core interaction |
 | `scripting` | API | Programmatically inject the content script into the active tab when user triggers an action. Required because we do not declare persistent content scripts | Declarative `content_scripts` in manifest -- rejected because it would inject on every page load, which is unnecessary and wasteful |
@@ -488,7 +488,7 @@ sequenceDiagram
     SW->>CS: Inject content script + send START_TRANSLATE (target=Romanian)
     CS->>CS: Capture selection target for later Replace/Append
     CS->>OV: Show loading overlay
-    CS->>SW: TRANSLATE message (text, targetLanguage, sourceLanguage=null)
+    CS->>SW: TRANSLATE message (text, targetLanguage)
     SW->>LLM: POST /v1/chat/completions (TRANSLATE prompt, target=Romanian)
     LLM-->>SW: Translated text
     SW-->>CS: Response (success, translated text)
@@ -578,7 +578,6 @@ export interface TranslateRequest {
   payload: {
     text: string;
     targetLanguage: SupportedLanguage;
-    sourceLanguage: SupportedLanguage | null; // null = auto-detect
   };
 }
 
@@ -699,7 +698,6 @@ export interface ExtensionSettings {
   ollamaEndpoint: string;
   model: string;
   defaultTargetLanguage: SupportedLanguage;
-  sourceLanguageOverride: SupportedLanguage | null; // null = auto-detect
 }
 
 // ============================================================
@@ -775,7 +773,6 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   ollamaEndpoint: 'http://localhost:11434',
   model: 'qwen3:14b',
   defaultTargetLanguage: 'English',
-  sourceLanguageOverride: null,        // auto-detect
   provider: 'ollama',                  // default provider
   openaiModel: 'gpt-5-nano',
   openaiApiKey: '',                    // empty = not configured
@@ -797,7 +794,6 @@ merge (not a replace) so partial updates are safe.
 | `settings.ollamaEndpoint` | `string` | `"http://localhost:11434"` | Ollama API base URL |
 | `settings.model` | `string` | `"qwen3:14b"` | Active Ollama model name |
 | `settings.defaultTargetLanguage` | `SupportedLanguage` | `"English"` | Default target for translations |
-| `settings.sourceLanguageOverride` | `SupportedLanguage \| null` | `null` | Sticky source language override; `null` means auto-detect |
 | `settings.provider` | `'ollama' \| 'openai'` | `"ollama"` | Active LLM provider |
 | `settings.openaiModel` | `'gpt-5.4-nano' \| 'gpt-5-nano'` | `"gpt-5-nano"` | Active OpenAI model |
 | `settings.openaiApiKey` | `string` | `""` | OpenAI bearer key; empty means not configured |
@@ -1287,8 +1283,6 @@ and storage/settings flows in a real Chrome.
 | **Provider switch to OpenAI** | In Settings, select OpenAI provider for the first time | Consent dialog appears; on confirm, OpenAI is selected and the `OpenAI` badge shows. |
 | **OpenAI key validation** | Enter an OpenAI key, click Validate | Green message if the key is valid and the model is accessible; red message otherwise. |
 | **OpenAI correction** | With OpenAI active and a valid key, correct text | Result returned from OpenAI; same overlay/popup behavior as Ollama. |
-| **Source language override** | In popup, set source language to "German", close popup, translate text | Override persists and is used for popup translations. |
-| **Source language reset** | Set override back to "Auto-detect" | Auto-detect is used. |
 | **Empty selection** | Right-click with no text selected | Context menu items should not appear (they are `contexts: ['selection']`). |
 | **Long text** | Select text > 10,000 characters | Error message about text being too long. |
 | **Replace in editable field** | Correct text inside a `<textarea>`, click Replace | Selection overwritten in the textarea (trailing newline). |

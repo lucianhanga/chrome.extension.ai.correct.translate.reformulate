@@ -88,14 +88,13 @@ describe('handleMessage', () => {
     const { handleMessage } = await import('../../src/background/message-handler.ts');
     const response = await handleMessage({
       type: 'TRANSLATE',
-      payload: { text: 'The sun is shining.', targetLanguage: 'Romanian', sourceLanguage: null },
+      payload: { text: 'The sun is shining.', targetLanguage: 'Romanian' },
     });
 
     expect(response).toMatchObject({ success: true, result: 'Soarele straluceste.' });
     expect(translateText).toHaveBeenCalledWith(
       'The sun is shining.',
       'Romanian',
-      null,
       expect.any(Object),
     );
   });
@@ -104,7 +103,7 @@ describe('handleMessage', () => {
     const { handleMessage } = await import('../../src/background/message-handler.ts');
     const response = await handleMessage({
       type: 'TRANSLATE',
-      payload: { text: '  ', targetLanguage: 'German', sourceLanguage: null },
+      payload: { text: '  ', targetLanguage: 'German' },
     });
     expect(response).toMatchObject({ success: false, errorCode: 'EMPTY_INPUT' });
   });
@@ -157,7 +156,7 @@ describe('handleMessage', () => {
     const { handleMessage } = await import('../../src/background/message-handler.ts');
     const response = await handleMessage({
       type: 'TRANSLATE',
-      payload: { text: 'text', targetLanguage: 'German', sourceLanguage: null },
+      payload: { text: 'text', targetLanguage: 'German' },
     });
 
     expect(response).toMatchObject({ success: false, errorCode: 'REQUEST_TIMEOUT' });
@@ -176,7 +175,6 @@ describe('handleMessage: OpenAI provider routing', () => {
         ollamaEndpoint: 'http://localhost:11434',
         model: 'qwen3:14b',
         defaultTargetLanguage: 'English',
-        sourceLanguageOverride: null,
         provider: 'openai',
         openaiModel: 'gpt-5-nano',
         openaiApiKey: 'sk-test',
@@ -214,7 +212,7 @@ describe('handleMessage: OpenAI provider routing', () => {
     const { handleMessage } = await import('../../src/background/message-handler.ts');
     const response = await handleMessage({
       type: 'TRANSLATE',
-      payload: { text: 'Hello.', targetLanguage: 'German', sourceLanguage: null },
+      payload: { text: 'Hello.', targetLanguage: 'German' },
     });
 
     expect(response).toMatchObject({ success: true, result: 'Translated via OpenAI.' });
@@ -261,7 +259,6 @@ describe('handleMessage: OpenAI key redaction and validation', () => {
         ollamaEndpoint: 'http://localhost:11434',
         model: 'qwen3:14b',
         defaultTargetLanguage: 'English',
-        sourceLanguageOverride: null,
         provider: 'ollama',
         openaiModel: 'gpt-5-nano',
         openaiApiKey: 'sk-super-secret',

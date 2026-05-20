@@ -178,7 +178,6 @@ describe('SettingsSection', () => {
     ollamaEndpoint: 'http://localhost:11434',
     model: 'qwen3:14b',
     defaultTargetLanguage: 'English' as const,
-    sourceLanguageOverride: null,
     provider: 'ollama' as const,
     openaiModel: 'gpt-5-nano' as const,
     openaiApiKey: '',
@@ -350,7 +349,6 @@ describe('Popup', () => {
         ollamaEndpoint: 'http://localhost:11434',
         model: 'qwen3.6:35b-a3b',
         defaultTargetLanguage: 'English',
-        sourceLanguageOverride: null,
       },
     });
 

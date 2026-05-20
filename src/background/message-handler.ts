@@ -101,7 +101,6 @@ export async function handleMessage(message: unknown): Promise<ServiceWorkerResp
         const client = getActiveClient(settings);
         const systemPrompt = buildTranslateSystemPrompt(
           message.payload.targetLanguage,
-          message.payload.sourceLanguage,
         );
         result = await client.call(
           systemPrompt,
@@ -113,7 +112,6 @@ export async function handleMessage(message: unknown): Promise<ServiceWorkerResp
         result = await translateText(
           message.payload.text,
           message.payload.targetLanguage,
-          message.payload.sourceLanguage,
           { model: settings.model, endpoint: settings.ollamaEndpoint },
         );
       }

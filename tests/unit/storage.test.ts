@@ -39,8 +39,7 @@ describe('getSettings', () => {
     expect(settings).toHaveProperty('ollamaEndpoint');
     expect(settings).toHaveProperty('model');
     expect(settings).toHaveProperty('defaultTargetLanguage');
-    expect(settings).toHaveProperty('sourceLanguageOverride');
-    // New OpenAI provider fields are also present.
+    // OpenAI provider fields are also present.
     expect(settings).toHaveProperty('provider');
     expect(settings).toHaveProperty('openaiModel');
     expect(settings).toHaveProperty('openaiApiKey');
@@ -59,14 +58,13 @@ describe('getSettings: OpenAI provider field migration and coercion', () => {
     await chromeMock.storage.local.set({ settings: raw });
   }
 
-  it('fills the four new fields from defaults for a pre-OpenAI stored shape', async () => {
+  it('fills the provider fields from defaults for a pre-OpenAI stored shape', async () => {
     const { getSettings } = await getStorageModule();
-    // A pre-OpenAI settings object: only the original four fields exist.
+    // A pre-OpenAI settings object: only the original fields exist (no provider fields).
     await seedRawSettings({
       ollamaEndpoint: 'http://localhost:11434',
       model: 'qwen3:14b',
       defaultTargetLanguage: 'German',
-      sourceLanguageOverride: null,
     });
     const settings = await getSettings();
     expect(settings.provider).toBe('ollama');
@@ -148,21 +146,6 @@ describe('saveSettings', () => {
     const settings = await getSettings();
     expect(settings.model).toBe('qwen3:14b');
     expect(settings.defaultTargetLanguage).toBe('Romanian');
-  });
-
-  it('can set sourceLanguageOverride to a specific language', async () => {
-    const { getSettings, saveSettings } = await getStorageModule();
-    await saveSettings({ sourceLanguageOverride: 'German' });
-    const settings = await getSettings();
-    expect(settings.sourceLanguageOverride).toBe('German');
-  });
-
-  it('can reset sourceLanguageOverride to null', async () => {
-    const { getSettings, saveSettings } = await getStorageModule();
-    await saveSettings({ sourceLanguageOverride: 'German' });
-    await saveSettings({ sourceLanguageOverride: null });
-    const settings = await getSettings();
-    expect(settings.sourceLanguageOverride).toBeNull();
   });
 });
 

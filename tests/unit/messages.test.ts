@@ -74,34 +74,27 @@ describe('isCorrectGrammarRequest', () => {
 });
 
 describe('isTranslateRequest', () => {
-  it('accepts a valid TRANSLATE message with auto-detect', () => {
+  it('accepts a valid TRANSLATE message', () => {
     const msg = {
       type: 'TRANSLATE',
-      payload: { text: 'Hello', targetLanguage: 'Romanian', sourceLanguage: null },
+      payload: { text: 'Hello', targetLanguage: 'Romanian' },
     };
     expect(isTranslateRequest(msg)).toBe(true);
   });
 
-  it('accepts a valid TRANSLATE message with explicit source', () => {
-    const msg = {
-      type: 'TRANSLATE',
-      payload: { text: 'Hallo', targetLanguage: 'English', sourceLanguage: 'German' },
-    };
-    expect(isTranslateRequest(msg)).toBe(true);
+  it('accepts all three target languages', () => {
+    for (const lang of ['English', 'German', 'Romanian']) {
+      expect(isTranslateRequest({
+        type: 'TRANSLATE',
+        payload: { text: 'Hello', targetLanguage: lang },
+      })).toBe(true);
+    }
   });
 
   it('rejects invalid targetLanguage', () => {
     const msg = {
       type: 'TRANSLATE',
-      payload: { text: 'Hi', targetLanguage: 'French', sourceLanguage: null },
-    };
-    expect(isTranslateRequest(msg)).toBe(false);
-  });
-
-  it('rejects invalid sourceLanguage', () => {
-    const msg = {
-      type: 'TRANSLATE',
-      payload: { text: 'Hi', targetLanguage: 'English', sourceLanguage: 'Spanish' },
+      payload: { text: 'Hi', targetLanguage: 'French' },
     };
     expect(isTranslateRequest(msg)).toBe(false);
   });
@@ -109,7 +102,7 @@ describe('isTranslateRequest', () => {
   it('rejects missing text', () => {
     const msg = {
       type: 'TRANSLATE',
-      payload: { targetLanguage: 'English', sourceLanguage: null },
+      payload: { targetLanguage: 'English' },
     };
     expect(isTranslateRequest(msg)).toBe(false);
   });

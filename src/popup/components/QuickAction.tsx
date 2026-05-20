@@ -14,7 +14,6 @@ import { ResultDisplay } from './ResultDisplay.tsx';
 
 interface QuickActionProps {
   defaultTargetLanguage: SupportedLanguage;
-  sourceLanguageOverride: SupportedLanguage | null;
 }
 
 interface ResultState {
@@ -24,7 +23,6 @@ interface ResultState {
 
 export function QuickAction({
   defaultTargetLanguage,
-  sourceLanguageOverride,
 }: QuickActionProps): React.ReactElement {
   const [inputText, setInputText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState<SupportedLanguage>(defaultTargetLanguage);
@@ -63,8 +61,7 @@ export function QuickAction({
     }
   };
 
-  // Translate. The source language is auto-detected by the model during the
-  // call, unless a source-language override is configured in settings.
+  // Translate. The source language is always auto-detected by the model.
   const handleTranslate = async (): Promise<void> => {
     if (isEmpty || overLimit || loading) return;
     setLoading(true);
@@ -74,7 +71,7 @@ export function QuickAction({
     try {
       const response = await chrome.runtime.sendMessage({
         type: 'TRANSLATE',
-        payload: { text: inputText, targetLanguage, sourceLanguage: sourceLanguageOverride },
+        payload: { text: inputText, targetLanguage },
       }) as ServiceWorkerResponse;
 
       if (isSuccessResponse(response)) {

@@ -99,7 +99,6 @@ export function Popup(): React.ReactElement {
           {settingsLoaded ? (
             <QuickAction
               defaultTargetLanguage={settings.defaultTargetLanguage}
-              sourceLanguageOverride={settings.sourceLanguageOverride}
             />
           ) : (
             <div className="flex items-center justify-center py-6">

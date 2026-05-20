@@ -1,11 +1,10 @@
 // src/popup/components/SettingsSection.tsx
 // Settings form: provider selector, Ollama endpoint + model, OpenAI key + model,
-// default target language, source language override.
+// default target language.
 
 import React, { useState } from 'react';
 import type { ExtensionSettings, SupportedLanguage, LLMProvider, OpenAIModel } from '../../shared/types.ts';
 import {
-  SUPPORTED_LANGUAGES,
   DEFAULT_OLLAMA_ENDPOINT,
   AVAILABLE_OPENAI_MODELS,
 } from '../../shared/constants.ts';
@@ -46,9 +45,6 @@ export function SettingsSection({ settings, onSaved }: SettingsSectionProps): Re
   // Language fields
   const [defaultTargetLanguage, setDefaultTargetLanguage] = useState<SupportedLanguage>(
     settings.defaultTargetLanguage,
-  );
-  const [sourceLanguageOverride, setSourceLanguageOverride] = useState<SupportedLanguage | null>(
-    settings.sourceLanguageOverride,
   );
 
   // Consent dialog state
@@ -132,7 +128,6 @@ export function SettingsSection({ settings, onSaved }: SettingsSectionProps): Re
         ollamaEndpoint: endpoint.trim() || DEFAULT_OLLAMA_ENDPOINT,
         model,
         defaultTargetLanguage,
-        sourceLanguageOverride,
         provider,
         openaiModel,
         // Only save the key if the user has typed a new one.
@@ -398,55 +393,6 @@ export function SettingsSection({ settings, onSaved }: SettingsSectionProps): Re
         }}
         includeAutoDetect={false}
       />
-
-      {/* Source Language Override */}
-      <div className="flex flex-col gap-1">
-        <LanguageSelector
-          label="Source Language Override"
-          value={sourceLanguageOverride}
-          onChange={setSourceLanguageOverride}
-          includeAutoDetect={true}
-        />
-        <p className="text-[11px] text-[#585b70]">
-          Set to Auto-detect to let the model identify the source language automatically.
-        </p>
-      </div>
-
-      {/* Source Language quick-select (non-selector buttons) */}
-      <div className="flex flex-col gap-1">
-        <span className="text-xs font-semibold text-[#a6adc8] uppercase tracking-wide">
-          Source Language Quick-Set
-        </span>
-        <div className="flex gap-1 flex-wrap">
-          <button
-            onClick={() => setSourceLanguageOverride(null)}
-            className={`
-              px-2 py-1 rounded text-xs font-medium border transition-colors duration-100
-              focus:outline-none focus:ring-2 focus:ring-[#22c55e]
-              ${sourceLanguageOverride === null
-                ? 'bg-[#22c55e] border-[#22c55e] text-[#1e1e2e]'
-                : 'bg-transparent border-[#45475a] text-[#a6adc8] hover:border-[#cdd6f4]'}
-            `}
-          >
-            Auto
-          </button>
-          {SUPPORTED_LANGUAGES.map((lang) => (
-            <button
-              key={lang}
-              onClick={() => setSourceLanguageOverride(lang)}
-              className={`
-                px-2 py-1 rounded text-xs font-medium border transition-colors duration-100
-                focus:outline-none focus:ring-2 focus:ring-[#22c55e]
-                ${sourceLanguageOverride === lang
-                  ? 'bg-[#22c55e] border-[#22c55e] text-[#1e1e2e]'
-                  : 'bg-transparent border-[#45475a] text-[#a6adc8] hover:border-[#cdd6f4]'}
-              `}
-            >
-              {lang}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Save button + feedback */}
       <div className="flex flex-col gap-1">
