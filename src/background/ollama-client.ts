@@ -16,6 +16,12 @@ import {
 // Request Builder
 // ============================================================
 
+// Builds a request body for the native Ollama /api/chat endpoint.
+//
+// This client uses /api/chat -- NOT the OpenAI-compatible /v1/chat/completions
+// endpoint -- because only /api/chat honors the `options` block. The OpenAI
+// endpoint silently ignores `options`, which would leave temperature, top_p,
+// top_k, and num_ctx (the context window) at the model defaults.
 function buildChatRequest(
   systemPrompt: string,
   userText: string,
@@ -29,12 +35,15 @@ function buildChatRequest(
       { role: 'user', content: userText },
     ],
     stream: false,
+    // `think` is a top-level field on /api/chat (not part of `options`).
+    think: OLLAMA_PARAMS.think,
+    // Runtime parameters. num_ctx caps the context window (16k) so the model
+    // is not loaded with its much larger default context.
     options: {
       temperature,
       top_p: OLLAMA_PARAMS.top_p,
       top_k: OLLAMA_PARAMS.top_k,
       num_ctx: OLLAMA_PARAMS.num_ctx,
-      think: OLLAMA_PARAMS.think,
     },
   };
 }
@@ -44,7 +53,7 @@ function buildChatRequest(
 // ============================================================
 
 /**
- * Calls the Ollama OpenAI-compatible API (non-streaming).
+ * Calls the Ollama native /api/chat API (non-streaming).
  *
  * @param systemPrompt - The system prompt for the task
  * @param userText - The user's input text
@@ -68,7 +77,7 @@ export async function callOllama(
     return { text: '', model, totalTokens: null, elapsedMs: 0 };
   }
 
-  const url = `${endpoint}/v1/chat/completions`;
+  const url = `${endpoint}/api/chat`;
   const body = buildChatRequest(systemPrompt, userText, model, temperature);
 
   const controller = new AbortController();
@@ -106,23 +115,31 @@ export async function callOllama(
 
   const data: unknown = await response.json();
 
+  // Native /api/chat response: { model, message: { content }, prompt_eval_count,
+  // eval_count, ... }.
   const typed = data as {
-    choices?: Array<{ message?: { content?: unknown } }>;
+    message?: { content?: unknown };
     model?: unknown;
-    usage?: { total_tokens?: unknown };
+    prompt_eval_count?: unknown;
+    eval_count?: unknown;
   };
 
-  const content = typed?.choices?.[0]?.message?.content;
+  const content = typed?.message?.content;
 
   if (typeof content !== 'string') {
     throw new Error(`Unexpected Ollama response shape: ${JSON.stringify(data)}`);
   }
 
-  // The Ollama /v1/chat/completions response may include the resolved model name
-  // and a usage object. Use them when present; degrade gracefully otherwise.
+  // /api/chat reports token usage as separate prompt and completion counts;
+  // sum them for the total. Degrade to null when neither is present.
   const resolvedModel = typeof typed.model === 'string' ? typed.model : model;
+  const promptTokens =
+    typeof typed.prompt_eval_count === 'number' ? typed.prompt_eval_count : null;
+  const evalTokens = typeof typed.eval_count === 'number' ? typed.eval_count : null;
   const totalTokens =
-    typeof typed.usage?.total_tokens === 'number' ? typed.usage.total_tokens : null;
+    promptTokens === null && evalTokens === null
+      ? null
+      : (promptTokens ?? 0) + (evalTokens ?? 0);
 
   return { text: content.trim(), model: resolvedModel, totalTokens, elapsedMs };
 }
