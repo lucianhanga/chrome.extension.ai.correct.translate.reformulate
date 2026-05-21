@@ -505,6 +505,88 @@ test.describe('Overlay: Replace / Append / Close behavior', () => {
     expect(valueAfterReplace).not.toBe(originalValue);
   });
 
+  test('Enter-triggered Replace overwrites a contenteditable via an insertText input event', async ({ context, testServerBaseUrl }) => {
+    // Replace on a contenteditable must (a) overwrite the selection exactly --
+    // leaving none of the original -- and (b) go through execCommand('insertText'),
+    // which fires an `input` event. Managed rich-text editors (ProseMirror:
+    // Confluence, Notion) only apply changes delivered as input events; the
+    // raw-DOM fallback fires no input event and lands the text before the
+    // original. Asserting an `input` event fired proves the editor-focused
+    // execCommand path was used, not the fallback.
+    const page = await context.newPage();
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    const realTabId = await sw.evaluate(async (): Promise<number> => {
+      const tabs = await chrome.tabs.query({ active: true });
+      return tabs[0]?.id ?? -1;
+    });
+
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, realTabId);
+    await waitForContentScript(sw, realTabId);
+
+    // Select the full text of the contenteditable div (holds German text).
+    const editable = page.locator('[data-testid="contenteditable-field"]');
+    await editable.click();
+    await editable.selectText();
+    const originalText = (await editable.textContent())?.trim() ?? '';
+    expect(originalText.length).toBeGreaterThan(0);
+
+    // Record whether an `input` event fires on the contenteditable.
+    await editable.evaluate((el: HTMLElement) => {
+      el.dataset['ctInputFired'] = 'no';
+      el.addEventListener('input', () => {
+        el.dataset['ctInputFired'] = 'yes';
+      });
+    });
+
+    // SHOW_LOADING captures the live selection for the later Replace.
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_LOADING',
+      payload: { action: 'correct', originalText },
+    });
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+
+    const replacement = 'The dog barks loudly.';
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_RESULT',
+      payload: { action: 'correct', originalText, resultText: replacement },
+    });
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+
+    // Enter triggers Replace, then the overlay dismisses.
+    await page.keyboard.press('Enter');
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') === null,
+      undefined,
+      { timeout: 5_000 },
+    );
+
+    // The contenteditable now holds exactly the replacement -- the original
+    // German text is gone (not merely prepended-to).
+    const textAfter = (await editable.textContent())?.trim() ?? '';
+    expect(textAfter).toBe(replacement);
+    expect(textAfter).not.toContain(originalText);
+
+    // Replace went through execCommand('insertText'), not the raw-DOM fallback.
+    const inputFired = await editable.evaluate(
+      (el: HTMLElement) => el.dataset['ctInputFired'],
+    );
+    expect(inputFired).toBe('yes');
+  });
+
   test('non-editable selection: the result overlay renders and dismisses via Escape', async ({ context, testServerBaseUrl }) => {
     const page = await context.newPage();
     await page.goto(`${testServerBaseUrl}/test-page.html`);
