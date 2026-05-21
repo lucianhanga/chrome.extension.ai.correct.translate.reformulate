@@ -2,7 +2,7 @@
 // Unit tests for the provider-agnostic LLMClient factory (getActiveClient).
 //
 // Routing is verified by observing which endpoint the resolved client's call()
-// hits: Ollama -> http://.../v1/chat/completions on the configured endpoint,
+// hits: Ollama -> http://.../api/chat on the configured endpoint,
 // OpenAI -> https://api.openai.com/v1/chat/completions. fetch is always mocked.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -15,10 +15,16 @@ function settings(overrides: Partial<ExtensionSettings>): ExtensionSettings {
 }
 
 function mockChatFetch(): ReturnType<typeof vi.fn> {
+  // Carries both response shapes so the single mock satisfies whichever client
+  // is under test: the Ollama client reads `message`, the OpenAI client reads
+  // `choices`.
   const fn = vi.fn().mockResolvedValue({
     ok: true,
     status: 200,
-    json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+    json: async () => ({
+      message: { content: 'ok' },
+      choices: [{ message: { content: 'ok' } }],
+    }),
     text: async () => '',
   });
   vi.stubGlobal('fetch', fn);
@@ -39,7 +45,7 @@ describe('getActiveClient', () => {
     await client.call('system', 'text', { model: 'qwen3:14b' });
 
     const url = fetchMock.mock.calls[0]?.[0] as string;
-    expect(url).toBe('http://localhost:11434/v1/chat/completions');
+    expect(url).toBe('http://localhost:11434/api/chat');
     // The Ollama request shape nests params in an options block.
     const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
     const body = JSON.parse(init.body as string) as { options?: unknown };

@@ -8,13 +8,13 @@ import { callOllama, checkOllamaHealth } from '../../src/background/ollama-clien
 
 function mockFetchSuccess(
   content: string,
-  extra: { model?: string; usage?: { total_tokens?: number } } = {},
+  extra: { model?: string; prompt_eval_count?: number; eval_count?: number } = {},
 ): void {
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     ok: true,
     status: 200,
     json: async () => ({
-      choices: [{ message: { content } }],
+      message: { content },
       ...extra,
     }),
     text: async () => '',
@@ -67,7 +67,8 @@ describe('callOllama', () => {
   it('returns an LLMResult with model, token count, and elapsed time', async () => {
     mockFetchSuccess('Corrected text.', {
       model: 'qwen3:14b',
-      usage: { total_tokens: 142 },
+      prompt_eval_count: 42,
+      eval_count: 100,
     });
     const result = await callOllama('System prompt', 'input text');
     expect(result.text).toBe('Corrected text.');
@@ -123,7 +124,7 @@ describe('callOllama', () => {
     await expect(callOllama('prompt', 'text')).rejects.toThrow('500');
   });
 
-  it('throws on unexpected response shape (no choices)', async () => {
+  it('throws on unexpected response shape (no message)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
@@ -133,17 +134,17 @@ describe('callOllama', () => {
     await expect(callOllama('prompt', 'text')).rejects.toThrow('Unexpected Ollama response shape');
   });
 
-  it('sends request to the correct URL', async () => {
+  it('sends the request to the native /api/chat endpoint', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      json: async () => ({ message: { content: 'ok' } }),
       text: async () => '',
     });
     vi.stubGlobal('fetch', fetchMock);
     await callOllama('prompt', 'text', { endpoint: 'http://localhost:11434' });
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://localhost:11434/v1/chat/completions',
+      'http://localhost:11434/api/chat',
       expect.objectContaining({ method: 'POST' }),
     );
   });
@@ -152,7 +153,7 @@ describe('callOllama', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      json: async () => ({ message: { content: 'ok' } }),
       text: async () => '',
     });
     vi.stubGlobal('fetch', fetchMock);
@@ -162,18 +163,34 @@ describe('callOllama', () => {
     expect(body.model).toBe('qwen3:14b');
   });
 
-  it('sends think: false in options', async () => {
+  it('sends think: false as a top-level field', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ choices: [{ message: { content: 'ok' } }] }),
+      json: async () => ({ message: { content: 'ok' } }),
       text: async () => '',
     });
     vi.stubGlobal('fetch', fetchMock);
     await callOllama('prompt', 'text');
     const callArgs = fetchMock.mock.calls[0] ?? [];
-    const body = JSON.parse((callArgs[1] as RequestInit).body as string) as { options: { think: boolean } };
-    expect(body.options.think).toBe(false);
+    const body = JSON.parse((callArgs[1] as RequestInit).body as string) as { think: boolean };
+    expect(body.think).toBe(false);
+  });
+
+  it('sends num_ctx in the options block to cap the context window', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ message: { content: 'ok' } }),
+      text: async () => '',
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    await callOllama('prompt', 'text');
+    const callArgs = fetchMock.mock.calls[0] ?? [];
+    const body = JSON.parse((callArgs[1] as RequestInit).body as string) as {
+      options: { num_ctx: number };
+    };
+    expect(body.options.num_ctx).toBe(16384);
   });
 });
 
