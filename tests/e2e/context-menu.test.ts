@@ -428,10 +428,15 @@ test.describe('Context menu: Translate', () => {
     expect(dismissed).toBe(true);
 
     // The contenteditable text changed: Replace substituted the English
-    // translation for the original German text.
+    // translation for the original German text. Crucially the original text
+    // is GONE -- not merely prepended-to. A Replace that wrongly inserts the
+    // translation before the original (leaving the original in place) would
+    // still be non-empty and != originalText, so the not.toContain check is
+    // what actually verifies the selection was overwritten.
     const textAfterReplace = (await editable.textContent())?.trim() ?? '';
     expect(textAfterReplace.length).toBeGreaterThan(0);
     expect(textAfterReplace).not.toBe(originalText);
+    expect(textAfterReplace).not.toContain(originalText);
   });
 
   test('translate_ro click on a non-editable selection shows a result overlay (Close only, no Replace)', async ({ context, testServerBaseUrl }) => {

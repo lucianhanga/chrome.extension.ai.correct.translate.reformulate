@@ -18,7 +18,7 @@ const RESULT_SUFFIX = '\n';
 // window.getSelection().
 export type CapturedTarget =
   | { kind: 'input'; element: HTMLTextAreaElement | HTMLInputElement; start: number; end: number }
-  | { kind: 'contenteditable'; range: Range }
+  | { kind: 'contenteditable'; range: Range; host: HTMLElement }
   | { kind: 'none' };
 
 /**
@@ -57,7 +57,11 @@ export function captureSelectionTarget(): CapturedTarget {
     };
   }
   if (editable instanceof HTMLElement && isContentEditable(editable)) {
-    return { kind: 'contenteditable', range: selection.getRangeAt(0).cloneRange() };
+    return {
+      kind: 'contenteditable',
+      range: selection.getRangeAt(0).cloneRange(),
+      host: editable,
+    };
   }
   return { kind: 'none' };
 }
@@ -89,7 +93,7 @@ export async function replaceCaptured(target: CapturedTarget, text: string): Pro
     return;
   }
   if (target.kind === 'contenteditable') {
-    insertIntoCapturedRange(target.range, text + RESULT_SUFFIX, 'replace');
+    insertIntoCapturedRange(target.host, target.range, text + RESULT_SUFFIX, 'replace');
     return;
   }
   await copyToClipboard(text);
@@ -106,7 +110,7 @@ export async function appendCaptured(target: CapturedTarget, text: string): Prom
     return;
   }
   if (target.kind === 'contenteditable') {
-    insertIntoCapturedRange(target.range, text + RESULT_SUFFIX, 'append');
+    insertIntoCapturedRange(target.host, target.range, text + RESULT_SUFFIX, 'append');
     return;
   }
   await copyToClipboard(text);
@@ -151,8 +155,23 @@ function replaceRangeInInput(
  * Insert text into a captured contenteditable range.
  * 'replace' overwrites the range; 'append' inserts after the range's end.
  * Uses execCommand('insertText') for plain-text, undo-friendly insertion.
+ *
+ * The editing host is re-focused first. When the user clicks the overlay's
+ * Replace/Append button (or presses Enter), focus is on the overlay -- not the
+ * editor -- so execCommand('insertText') would run with no focused editable and
+ * fail. Managed rich-text editors (ProseMirror-based: Confluence, Notion, ...)
+ * only apply an insertText input event when they own focus; without the focus
+ * the raw-DOM fallback below mutates their DOM behind their model and the text
+ * lands before the original instead of replacing it.
  */
-function insertIntoCapturedRange(range: Range, text: string, mode: 'replace' | 'append'): void {
+function insertIntoCapturedRange(
+  host: HTMLElement,
+  range: Range,
+  text: string,
+  mode: 'replace' | 'append',
+): void {
+  host.focus({ preventScroll: true });
+
   const selection = window.getSelection();
   if (!selection) return;
 
@@ -164,18 +183,22 @@ function insertIntoCapturedRange(range: Range, text: string, mode: 'replace' | '
   selection.removeAllRanges();
   selection.addRange(targetRange);
 
-  // execCommand('insertText') inserts plain text only (never HTML) -- safe against XSS.
+  // execCommand('insertText') inserts plain text only (never HTML) -- safe
+  // against XSS -- and is delivered as an input event that managed editors
+  // apply through their own document model.
   const ok = document.execCommand('insertText', false, text);
-  if (!ok) {
-    // Fallback: manual range manipulation.
-    targetRange.deleteContents();
-    const node = document.createTextNode(text);
-    targetRange.insertNode(node);
-    targetRange.setStartAfter(node);
-    targetRange.setEndAfter(node);
-    selection.removeAllRanges();
-    selection.addRange(targetRange);
-  }
+  if (ok) return;
+
+  // Last-resort fallback for editors that reject execCommand. Direct DOM
+  // mutation works for plain inputs and simple contenteditables but is not
+  // guaranteed to survive a managed editor's re-render.
+  targetRange.deleteContents();
+  const node = document.createTextNode(text);
+  targetRange.insertNode(node);
+  targetRange.setStartAfter(node);
+  targetRange.setEndAfter(node);
+  selection.removeAllRanges();
+  selection.addRange(targetRange);
 }
 
 // ============================================================
