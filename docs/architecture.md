@@ -38,6 +38,46 @@ plan; the new multi-provider design is described in full in
 
 ---
 
+## Document Revision Note (v1.2)
+
+Version 1.2 records the changes shipped after v1.1 (merged via PRs #4--#10):
+
+- **Reformulate action.** A third text action alongside Correct and Translate,
+  in both the context menu and the popup, with four tones (`keep`,
+  `professional`, `friendly`, `natural`) and a persistent **Keep terminology**
+  toggle. See `buildReformulateSystemPrompt` (`prompts.ts`), `reformulateText`
+  (`tasks.ts`), and the `REFORMULATE` / `START_REFORMULATE` messages.
+- **Context menu restructured** under one top-level entry,
+  `Correct/Translate/Reformulate`, with `Translate` and `Reformulate` submenus
+  and a `Keep terminology` checkbox item (Section 8).
+- **Ollama uses the native `/api/chat` endpoint** instead of the
+  OpenAI-compatible `/v1/chat/completions`. The latter silently ignored the
+  `options` block, leaving `num_ctx`, `temperature`, `top_p`, `top_k` and
+  `think` with no effect; the context window is now capped at 16k as intended
+  (Section 14.4, Appendix C).
+- **Result metadata.** Every result carries the model name, token count and
+  elapsed time (`LLMResult`); the overlay and popup render a
+  `model - tokens - elapsed` line.
+- **`<all_urls>` host permission**, required to inject the content script into
+  cross-origin iframes -- webmail compose editors (GMX, etc.) host their editor
+  in such a frame, which `activeTab` cannot reach. Network egress is still
+  restricted to Ollama and OpenAI by the unchanged `connect-src` CSP
+  (Section 3).
+- **Frame-targeted injection.** Context-menu actions inject the content script
+  into the frame that was right-clicked (`info.frameId`), so selections inside
+  iframes are seen (Section 8.4).
+- **Rich-editor Replace/Append.** The editor element is re-focused before
+  inserting, so `execCommand('insertText')` runs inside it -- managed editors
+  (ProseMirror-based: Confluence, Notion) only apply input events when focused.
+- **Production packaging.** `scripts/package.sh` (run via `pnpm package`)
+  builds `dist/` and zips it into `correct-and-translate-<version>.zip`.
+
+The numbered sections below are updated for the load-bearing facts (manifest,
+context menu, Ollama endpoint). Some prose still names only the
+Correct/Translate pair -- read it as applying to Reformulate equally.
+
+---
+
 ## 1. Architecture Overview
 
 ### 1.1 Goals
@@ -253,8 +293,7 @@ This is the manifest as shipped on the `feat/openai-provider` branch
   ],
 
   "host_permissions": [
-    "http://localhost:11434/*",
-    "https://api.openai.com/*"
+    "<all_urls>"
   ],
 
   "background": {
@@ -295,18 +334,16 @@ OpenAI is also supported.
 | Permission | Type | Justification | Alternatives Considered |
 |------------|------|---------------|------------------------|
 | `storage` | API | Store user settings: provider choice, Ollama endpoint and model, OpenAI model and API key, consent flag, default target language | None -- required for settings persistence |
-| `activeTab` | API | Access the active tab to read selected text and inject the content script when user triggers a context menu action | `<all_urls>` host permission -- rejected as overly broad |
+| `activeTab` | API | Access the active tab to read selected text and inject the content script when user triggers a context menu action | Retained alongside the `<all_urls>` host permission (see below), which is what actually enables cross-origin iframe injection |
 | `contextMenus` | API | Register right-click menu items for "Correct Grammar" and "Translate to" actions | Popup-only UI -- rejected because context menu is a core interaction |
 | `scripting` | API | Programmatically inject the content script into the active tab when user triggers an action. Required because we do not declare persistent content scripts | Declarative `content_scripts` in manifest -- rejected because it would inject on every page load, which is unnecessary and wasteful |
 | `clipboardWrite` | API | The result panel (popup) and the in-page overlay copy the result to the clipboard automatically without an explicit copy click. `clipboardWrite` guarantees `navigator.clipboard.writeText` succeeds for this programmatic, non-user-gesture write, and authorizes the `document.execCommand('copy')` fallback used when the async Clipboard API is unavailable. | Requiring an explicit copy button (a user gesture) -- rejected because the UX change removed those buttons in favor of automatic copy |
-| `http://localhost:11434/*` | Host | Service worker must call the local Ollama API at this endpoint | No alternative -- Ollama runs on localhost only |
-| `https://api.openai.com/*` | Host | When the OpenAI provider is selected, the service worker calls `POST /v1/chat/completions` (correction/translation) and `GET /v1/models` (key validation and health check) on `api.openai.com`. MV3 blocks the fetch without a matching host permission. | A broader `https://*/*` host permission -- rejected as overly broad; `api.openai.com` is the only online endpoint the extension contacts |
+| `<all_urls>` | Host | Lets the service worker call the Ollama (`localhost:11434`) and OpenAI (`api.openai.com`) APIs, and -- critically -- lets `chrome.scripting.executeScript` inject the content script into **cross-origin iframes**. Webmail compose editors (GMX, etc.) host their editable area in a cross-origin frame that `activeTab` cannot reach. Network egress remains restricted to Ollama and OpenAI by the `connect-src` CSP. | Narrow per-origin host permissions (`localhost:11434`, `api.openai.com`) -- shipped in v1.1 but rejected in v1.2 because they cannot cover the arbitrary cross-origin frames of third-party editors |
 
 ### 3.3 Permissions NOT Included (and Why)
 
 | Permission | Why Excluded |
 |------------|-------------|
-| `<all_urls>` | Not needed -- `activeTab` grants temporary access to the current tab when user invokes the extension |
 | `tabs` | Not needed -- `activeTab` is sufficient; we do not need to enumerate or modify other tabs |
 | `sidePanel` | Not in scope |
 | `clipboardRead` | The extension only writes to the clipboard, never reads from it |
@@ -333,6 +370,13 @@ the result-UI changes:
   permits the connection. The Ollama entries (`http://localhost:11434`) remain
   for the local provider; both providers' endpoints are listed explicitly and
   nothing broader is granted.
+
+**v1.2 update:** `host_permissions` was subsequently broadened to `<all_urls>`
+so the content script can be injected into cross-origin iframe editors (see the
+permission table in Section 3.2). The `connect-src` CSP still lists only
+`http://localhost:11434` and `https://api.openai.com`, so network egress is
+unchanged -- the broad host permission governs script injection, not which
+servers the extension may contact.
 
 ---
 
@@ -836,75 +880,65 @@ the [provider setup and privacy guide](provider-setup-and-privacy.md).
 ```
 [Right-click on selected text]
 |
-+-- "Correct Grammar"                    (id: "correct_grammar")
-+-- "Translate to"                       (id: "translate_parent")
-    +-- "English"                        (id: "translate_en")
-    +-- "German"                         (id: "translate_de")
-    +-- "Romanian"                       (id: "translate_ro")
++-- "Correct/Translate/Reformulate"          (id: "ct_root")
+    +-- "Correct Grammar"                    (id: "correct_grammar")
+    +-- ----------------                     (separator)
+    +-- "Translate to"                       (id: "translate_parent")
+    |   +-- "English"                        (id: "translate_en")
+    |   +-- "German"                         (id: "translate_de")
+    |   +-- "Romanian"                       (id: "translate_ro")
+    +-- ----------------                     (separator)
+    +-- "Reformulate"                        (id: "reformulate_parent")
+    |   +-- "Keep tone"                      (id: "reformulate_keep")
+    |   +-- "Professional"                   (id: "reformulate_professional")
+    |   +-- "Friendly"                       (id: "reformulate_friendly")
+    |   +-- "Natural"                        (id: "reformulate_natural")
+    +-- ----------------                     (separator)
+    +-- [x] "Keep terminology"               (id: "keep_terminology", checkbox)
 ```
+
+All items use `contexts: ['selection']`. "Keep terminology" is a checkbox item,
+checked by default, whose state is persisted in `chrome.storage` and kept in
+sync with the popup's matching toggle.
 
 ### 8.2 Registration Code Pattern
 
-```typescript
-// src/background/context-menu.ts
-
-export function registerContextMenus(): void {
-  chrome.contextMenus.removeAll(() => {
-    chrome.contextMenus.create({
-      id: 'correct_grammar',
-      title: 'Correct Grammar',
-      contexts: ['selection'],
-    });
-
-    chrome.contextMenus.create({
-      id: 'translate_parent',
-      title: 'Translate to',
-      contexts: ['selection'],
-    });
-
-    chrome.contextMenus.create({
-      id: 'translate_en',
-      parentId: 'translate_parent',
-      title: 'English',
-      contexts: ['selection'],
-    });
-
-    chrome.contextMenus.create({
-      id: 'translate_de',
-      parentId: 'translate_parent',
-      title: 'German',
-      contexts: ['selection'],
-    });
-
-    chrome.contextMenus.create({
-      id: 'translate_ro',
-      parentId: 'translate_parent',
-      title: 'Romanian',
-      contexts: ['selection'],
-    });
-  });
-}
-```
+`registerContextMenus()` in `src/background/context-menu.ts` is `async`: it
+reads `settings.keepTerminology` first (so the checkbox renders with the
+correct initial state), then builds the tree under the `ct_root` parent -- the
+Correct item, the Translate and Reformulate submenus, the separators, and the
+`keep_terminology` checkbox item. It is called from the service worker's
+`onInstalled` and `onStartup` handlers. A `chrome.storage.onChanged` listener
+calls `chrome.contextMenus.update` to keep the checkbox in sync when
+`keepTerminology` is changed from the popup.
 
 ### 8.3 Menu Item ID to Action Mapping
 
-| Menu Item ID | Action | Target Language |
-|-------------|--------|----------------|
+| Menu Item ID | Action | Target Language / Tone |
+|-------------|--------|------------------------|
 | `correct_grammar` | `correct` | N/A |
-| `translate_en` | `translate` | `English` |
-| `translate_de` | `translate` | `German` |
-| `translate_ro` | `translate` | `Romanian` |
+| `translate_en` / `translate_de` / `translate_ro` | `translate` | English / German / Romanian |
+| `reformulate_keep` | `reformulate` | tone `keep` |
+| `reformulate_professional` | `reformulate` | tone `professional` |
+| `reformulate_friendly` | `reformulate` | tone `friendly` |
+| `reformulate_natural` | `reformulate` | tone `natural` |
+| `keep_terminology` | (none) | checkbox -- toggles the `keepTerminology` setting |
+| `ct_root`, `translate_parent`, `reformulate_parent`, separators | (none) | parent / separator -- no action |
 
 ### 8.4 Context Menu Click Handler Flow
 
-1. `chrome.contextMenus.onClicked` fires in the service worker
-2. Extract `info.menuItemId`, `info.selectionText`, `tab.id`
-3. Validate `selectionText` is non-empty and within length limit
-4. Inject content script into the tab via `chrome.scripting.executeScript`
-5. Send `SHOW_LOADING` to the content script
-6. Call the appropriate task function (`correctGrammar` or `translateText`)
-7. On success: send `SHOW_RESULT` to the content script
-8. On error: send `SHOW_ERROR` to the content script
+1. `chrome.contextMenus.onClicked` fires in the service worker.
+2. Extract `info.menuItemId`, `info.selectionText`, `info.frameId`, `tab.id`.
+3. If the item is `keep_terminology`, persist the new checkbox state and stop --
+   no LLM call, no script injection.
+4. Validate `selectionText` is non-empty and within the length limit.
+5. Inject the content script into the **frame that was clicked**
+   (`executeScript` with `frameIds: [info.frameId]`), so selections inside
+   iframes are reachable; all follow-up messages target that same frame.
+6. `correct`: send `SHOW_LOADING`, run `correctGrammar`, then send `SHOW_RESULT`
+   (or `SHOW_ERROR`).
+7. `translate` / `reformulate`: send `START_TRANSLATE` / `START_REFORMULATE` --
+   the content script then runs the request-and-render flow itself.
 
 ---
 
@@ -1478,10 +1512,15 @@ themselves -- they ask the factory for a client and call `client.call(...)`.
 
 #### Ollama client (`ollama-client.ts`)
 
-- Talks to `${endpoint}/v1/chat/completions` (default endpoint
-  `http://localhost:11434`), the Ollama OpenAI-compatible API, non-streaming.
-- Request body carries Ollama-specific options under an `options` block:
-  `temperature`, `top_p`, `top_k`, `num_ctx`, `think` (see `OLLAMA_PARAMS`).
+- Talks to `${endpoint}/api/chat` (default endpoint `http://localhost:11434`),
+  the **native** Ollama API, non-streaming. The OpenAI-compatible
+  `/v1/chat/completions` endpoint is deliberately not used: it ignores the
+  `options` block, which would leave `num_ctx`, `temperature`, `top_p`, `top_k`
+  and `think` at the model defaults.
+- Request body carries `think` as a top-level field and the runtime options
+  (`temperature`, `top_p`, `top_k`, `num_ctx`) under an `options` block (see
+  `OLLAMA_PARAMS`). The response text is read from `message.content`; the token
+  total is `prompt_eval_count + eval_count`.
 - `checkOllamaHealth` calls `GET /api/tags` and matches the configured model by
   exact name or name prefix.
 - Errors are plain `Error` objects; `classifyError` string-matches them
@@ -1630,7 +1669,7 @@ The developer agent should test the chosen plugin and fall back if it causes bui
 | `top_k` | `20` | Qwen3 recommended default |
 | `num_ctx` | `16384` | Sufficient for 10,000 character inputs |
 | `think` | `false` | Disable chain-of-thought for speed |
-| API endpoint | `${endpoint}/v1/chat/completions` | OpenAI-compatible, non-streaming |
+| API endpoint | `${endpoint}/api/chat` | Native Ollama API, non-streaming -- honors the `options` block (the OpenAI-compatible endpoint does not) |
 | Health endpoint | `${endpoint}/api/tags` | Lists installed models |
 | Timeout | `60000` ms (`REQUEST_TIMEOUT_MS`) | Accommodates model load + inference |
 | Input limit | `10000` characters (`MAX_INPUT_LENGTH`) | Prevents excessive load |
