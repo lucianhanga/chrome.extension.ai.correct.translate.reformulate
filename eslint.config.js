@@ -96,6 +96,15 @@ export default [
       },
     },
   },
+  // Node globals for test helpers and Vitest globalSetup files that use process.env.
+  {
+    files: ['tests/helpers/**/*.ts', 'tests/setup/**/*.ts'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+      },
+    },
+  },
   // E2E tests run partly in Node (the Playwright driver) and partly in the browser
   // (page.evaluate / waitForFunction callbacks). tsconfig.e2e.json type-checks them
   // with both Node and DOM libs, so ESLint's no-undef is redundant here and only
