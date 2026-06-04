@@ -87,11 +87,23 @@ export const test = base.extend<ExtensionFixtures>({
     await use(providerInfo.provider);
   },
 
-  context: async ({ extensionId: _id }, use) => {
+  context: async ({ extensionId: _id }, use, testInfo) => {
+    // The profile dir must be unique per browser launch. Deriving it from
+    // Date.now() alone collides when multiple workers (or a retry) launch within
+    // the same millisecond, which makes Chrome fail with a ProcessSingleton lock
+    // error. Include the worker index, retry count, pid, and a random suffix so
+    // every launch gets its own directory.
+    const unique = [
+      testInfo.workerIndex,
+      testInfo.retry,
+      process.pid,
+      Date.now(),
+      Math.random().toString(36).slice(2, 8),
+    ].join('-');
     const userDataDir = resolve(
       process.cwd(),
       'test-results',
-      `.chrome-profile-${Date.now()}`,
+      `.chrome-profile-${unique}`,
     );
 
     const ctx = await chromium.launchPersistentContext(userDataDir, {
