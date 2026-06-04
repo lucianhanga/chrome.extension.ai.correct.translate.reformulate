@@ -5,8 +5,8 @@ selected text using a large language model. It runs against a **local Ollama
 LLM by default** (fully private, nothing leaves your machine) or, opt-in,
 against **OpenAI**.
 
-[![CI](https://github.com/lucianhanga/correct-and-translate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/correct-and-translate/actions/workflows/ci.yml)
-![tests](https://img.shields.io/badge/tests-278%20unit%20%7C%20117%20e2e-22c55e)
+[![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
+![tests](https://img.shields.io/badge/tests-287%20unit%20%7C%20119%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
 ![version](https://img.shields.io/badge/version-1.0.1-1e3a5f)
 
@@ -153,15 +153,15 @@ pick up changes.
 
 ### Latest test run
 
-Run on the `main` branch on 2026-05-21, against a real local Ollama
+Run on the `main` branch on 2026-06-04, against a real local Ollama
 (model `qwen3:14b`):
 
 | Check | Result |
 |-------|--------|
 | `pnpm typecheck` (tsc, src + e2e) | pass |
 | `pnpm lint` (eslint) | pass |
-| `pnpm test` -- unit (Vitest) | 278 / 278 passed (15 files) |
-| `pnpm test:e2e` -- end-to-end (Playwright) | 117 / 117 passed (~2.2 min) |
+| `pnpm test` -- unit (Vitest) | 287 / 287 passed (16 files) |
+| `pnpm test:e2e` -- end-to-end (Playwright) | 119 / 119 passed (~1.2 min) |
 
 These figures are from a local run. The end-to-end suite is not part of CI
 (see below), so re-run it locally before a release.
