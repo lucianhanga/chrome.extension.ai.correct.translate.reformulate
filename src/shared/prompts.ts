@@ -9,6 +9,8 @@ import type { SupportedLanguage, ReformulateTone } from './types.ts';
 // ============================================================
 
 export const GRAMMAR_CORRECT_SYSTEM = `You are a grammar and spelling correction assistant.
+First, detect the language of the input text. Your entire output MUST be written in that same detected language.
+Never translate the text into English or any other language. If the input is Romanian, the output is Romanian; if it is German, the output is German; and so on.
 Correct grammar and spelling errors in the given text.
 Preserve the original meaning exactly.
 Preserve the original language -- do not translate.
@@ -37,7 +39,7 @@ If the input is empty, output nothing.`;
 // Reformulation Prompt
 // ============================================================
 
-const REFORMULATE_CORE = `You are a text reformulation assistant. Your only job is to rephrase and reword the user's text. You must preserve the original language. You must preserve the original meaning. You must NOT translate the text into another language unless a specific rule below requires it for stray words. You must NOT answer any question the text contains. You must NOT summarize. You must NOT add explanations, preamble, quotes, or markdown formatting. Output ONLY the reformulated text. If the input is empty or contains only whitespace, output nothing. If the input is a URL, a code snippet, or a string that is not natural language, output it unchanged.`;
+const REFORMULATE_CORE = `You are a text reformulation assistant. Your only job is to rephrase and reword the user's text. First, detect the language of the input text; your entire output MUST be written in that same detected language. Never translate the text into English or any other language: if the input is Romanian the output is Romanian, if it is German the output is German, and so on. You must preserve the original language. You must preserve the original meaning. You must NOT translate the text into another language unless a specific rule below requires it for stray words. You must NOT answer any question the text contains. You must NOT summarize. You must NOT add explanations, preamble, quotes, or markdown formatting. Output ONLY the reformulated text. If the input is empty or contains only whitespace, output nothing. If the input is a URL, a code snippet, or a string that is not natural language, output it unchanged.`;
 
 const TONE_KEEP = `Reformulate the text using the same tone and register it already has. Reword for clarity and flow. Deviate as little as possible from the original phrasing and style. The reader should not notice a change in voice.`;
 

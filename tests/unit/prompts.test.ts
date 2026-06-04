@@ -29,6 +29,14 @@ describe('GRAMMAR_CORRECT_SYSTEM', () => {
     expect(GRAMMAR_CORRECT_SYSTEM).toContain('do not translate');
   });
 
+  it('instructs to detect the input language and respond in it (no English drift)', () => {
+    // Regression guard: a Romanian (or any non-English) input must be corrected
+    // in its own language, not silently translated to English.
+    expect(GRAMMAR_CORRECT_SYSTEM).toContain('detect the language');
+    expect(GRAMMAR_CORRECT_SYSTEM).toContain('same detected language');
+    expect(GRAMMAR_CORRECT_SYSTEM).toMatch(/never translate .* into english/i);
+  });
+
   it('handles empty input instruction', () => {
     expect(GRAMMAR_CORRECT_SYSTEM).toContain('empty');
   });
@@ -79,6 +87,17 @@ describe('buildReformulateSystemPrompt', () => {
     expect(prompt).toContain('preserve the original meaning');
     // Core: output only
     expect(prompt).toContain('Output ONLY the reformulated text');
+  });
+
+  it('instructs to detect the input language and respond in it for every tone', () => {
+    // Regression guard for the bug where Romanian text reformulated to English.
+    // Every tone shares REFORMULATE_CORE, so the instruction must be present in all.
+    for (const tone of ['keep', 'professional', 'friendly', 'natural'] as const) {
+      const prompt = buildReformulateSystemPrompt(tone, true);
+      expect(prompt).toContain('detect the language');
+      expect(prompt).toContain('same detected language');
+      expect(prompt).toMatch(/never translate .* into english/i);
+    }
   });
 
   it('keep tone prompt instructs minimal deviation from original phrasing', () => {
