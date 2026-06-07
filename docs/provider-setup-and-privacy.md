@@ -53,10 +53,11 @@ apply. The service worker is the only component that contacts either provider.
 Ollama is the default provider. With Ollama, all text stays on your machine.
 
 1. Install Ollama and pull a supported model. The shipped default Ollama model
-   is `qwen3:14b`; `qwen3.6:35b-a3b` is also selectable in Settings.
+   is `gemma4:latest`; `gemma3:27b` and `qwen3.6:35b-a3b` are also selectable in
+   Settings.
 
    ```bash
-   ollama pull qwen3:14b
+   ollama pull gemma4:latest
    ```
 
 2. Make sure Ollama is running and serving on `http://localhost:11434`:
