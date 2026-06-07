@@ -43,6 +43,7 @@ describe('isSupportedLanguage', () => {
     expect(isSupportedLanguage('English')).toBe(true);
     expect(isSupportedLanguage('German')).toBe(true);
     expect(isSupportedLanguage('Romanian')).toBe(true);
+    expect(isSupportedLanguage('Spanish')).toBe(true);
   });
 
   it('rejects invalid languages', () => {
@@ -86,8 +87,8 @@ describe('isTranslateRequest', () => {
     expect(isTranslateRequest(msg)).toBe(true);
   });
 
-  it('accepts all three target languages', () => {
-    for (const lang of ['English', 'German', 'Romanian']) {
+  it('accepts all supported target languages', () => {
+    for (const lang of ['English', 'German', 'Romanian', 'Spanish']) {
       expect(isTranslateRequest({
         type: 'TRANSLATE',
         payload: { text: 'Hello', targetLanguage: lang },

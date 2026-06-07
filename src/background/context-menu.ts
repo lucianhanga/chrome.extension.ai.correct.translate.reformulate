@@ -74,6 +74,13 @@ export async function registerContextMenus(): Promise<void> {
     contexts: ['selection'],
   });
 
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_IDS.TRANSLATE_ES,
+    parentId: CONTEXT_MENU_IDS.TRANSLATE_PARENT,
+    title: 'Spanish',
+    contexts: ['selection'],
+  });
+
   // Separator 2
   chrome.contextMenus.create({
     id: CONTEXT_MENU_IDS.SEPARATOR_2,
@@ -162,6 +169,8 @@ export function resolveMenuAction(menuItemId: string): ResolvedMenuAction | null
       return { action: 'translate', targetLanguage: 'German' };
     case CONTEXT_MENU_IDS.TRANSLATE_RO:
       return { action: 'translate', targetLanguage: 'Romanian' };
+    case CONTEXT_MENU_IDS.TRANSLATE_ES:
+      return { action: 'translate', targetLanguage: 'Spanish' };
     case CONTEXT_MENU_IDS.REFORMULATE_KEEP:
       return { action: 'reformulate', tone: 'keep' };
     case CONTEXT_MENU_IDS.REFORMULATE_PROFESSIONAL:
