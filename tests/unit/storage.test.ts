@@ -18,12 +18,11 @@ async function getStorageModule() {
 }
 
 describe('default Ollama model', () => {
-  // Guard the shipped default model. Chosen via a translation head-to-head:
-  // qwen3.6:35b-a3b matched the best quality and was the fastest of the
-  // quality-tier models, and is the documented recommended primary.
-  it('is qwen3.6:35b-a3b', () => {
-    expect(DEFAULT_MODEL).toBe('qwen3.6:35b-a3b');
-    expect(DEFAULT_SETTINGS.model).toBe('qwen3.6:35b-a3b');
+  // Guard the shipped default model. Chosen for a small/fast footprint
+  // (~9.6 GB) at near-equal translation quality to the larger 27-35B models.
+  it('is gemma4:latest', () => {
+    expect(DEFAULT_MODEL).toBe('gemma4:latest');
+    expect(DEFAULT_SETTINGS.model).toBe('gemma4:latest');
   });
 });
 
