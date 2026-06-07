@@ -20,6 +20,7 @@ import { checkOllamaHealth } from './ollama-client.ts';
 import { getActiveClient } from './llm-client.ts';
 import { checkOpenAIHealth } from './openai-client.ts';
 import { GRAMMAR_CORRECT_SYSTEM, buildTranslateSystemPrompt } from '../shared/prompts.ts';
+import { stripRomanianDiacritics } from '../shared/text.ts';
 
 // ============================================================
 // Error Helper
@@ -123,9 +124,17 @@ export async function handleMessage(message: unknown): Promise<ServiceWorkerResp
         );
       }
 
+      // Romanian translations are delivered without diacritics (plain ASCII).
+      // This is deterministic post-processing so it holds regardless of model
+      // or provider; correction/reformulation are unaffected.
+      const translatedText =
+        message.payload.targetLanguage === 'Romanian'
+          ? stripRomanianDiacritics(llmResult.text)
+          : llmResult.text;
+
       return {
         success: true,
-        result: llmResult.text,
+        result: translatedText,
         model: llmResult.model,
         totalTokens: llmResult.totalTokens,
         elapsedMs: llmResult.elapsedMs,

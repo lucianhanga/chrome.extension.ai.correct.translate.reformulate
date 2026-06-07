@@ -132,6 +132,33 @@ describe('handleMessage', () => {
     );
   });
 
+  it('strips Romanian diacritics from a TRANSLATE-to-Romanian result', async () => {
+    const { translateText } = await import('../../src/background/tasks.ts');
+    vi.mocked(translateText).mockResolvedValue(llmResult('Soarele strălucește astăzi.'));
+
+    const { handleMessage } = await import('../../src/background/message-handler.ts');
+    const response = await handleMessage({
+      type: 'TRANSLATE',
+      payload: { text: 'The sun is shining today.', targetLanguage: 'Romanian' },
+    });
+
+    expect(response).toMatchObject({ success: true, result: 'Soarele straluceste astazi.' });
+  });
+
+  it('does NOT strip diacritics when translating to a non-Romanian language', async () => {
+    const { translateText } = await import('../../src/background/tasks.ts');
+    // Spanish output that happens to contain a diacritic-like char must survive.
+    vi.mocked(translateText).mockResolvedValue(llmResult('El sol está brillando.'));
+
+    const { handleMessage } = await import('../../src/background/message-handler.ts');
+    const response = await handleMessage({
+      type: 'TRANSLATE',
+      payload: { text: 'The sun is shining.', targetLanguage: 'Spanish' },
+    });
+
+    expect(response).toMatchObject({ success: true, result: 'El sol está brillando.' });
+  });
+
   it('threads LLM metadata into the TRANSLATE success response', async () => {
     const { translateText } = await import('../../src/background/tasks.ts');
     vi.mocked(translateText).mockResolvedValue(
