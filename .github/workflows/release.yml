@@ -1,0 +1,66 @@
+# Release: build the extension and publish the packaged zip to a GitHub Release.
+#
+# Triggered by pushing a version tag (for example `v1.5.1`). It verifies, builds,
+# and packages the extension, then creates a GitHub Release with
+# correct-and-translate-<version>.zip attached, so users can install via
+# "Load unpacked" without building from source.
+#
+# The end-to-end suite is intentionally NOT run here (it needs a local Ollama,
+# which does not fit a GitHub-hosted runner) -- matching ci.yml.
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and publish release zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: 11
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Check tag matches manifest version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          MANIFEST="$(grep '"version"' public/manifest.json | head -1 | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
+          if [ "${TAG}" != "${MANIFEST}" ]; then
+            echo "::error::Tag v${TAG} does not match manifest.json version ${MANIFEST}"
+            exit 1
+          fi
+          echo "Tag matches manifest version: ${MANIFEST}"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify (type-check, lint, unit tests)
+        run: |
+          pnpm typecheck
+          pnpm lint
+          pnpm test
+
+      - name: Package extension
+        run: pnpm package
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: correct-and-translate-*.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
