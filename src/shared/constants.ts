@@ -11,12 +11,14 @@ export const SUPPORTED_LANGUAGES: readonly SupportedLanguage[] = [
   'English',
   'German',
   'Romanian',
+  'Spanish',
 ] as const;
 
 export const LANGUAGE_DISPLAY_NAMES: Record<SupportedLanguage, string> = {
   English: 'English',
   German: 'German',
   Romanian: 'Romanian',
+  Spanish: 'Spanish',
 };
 
 // ============================================================
@@ -109,6 +111,7 @@ export const CONTEXT_MENU_IDS = {
   TRANSLATE_EN: 'translate_en',
   TRANSLATE_DE: 'translate_de',
   TRANSLATE_RO: 'translate_ro',
+  TRANSLATE_ES: 'translate_es',
   SEPARATOR_2: 'ct_sep_2',
   REFORMULATE_PARENT: 'reformulate_parent',
   REFORMULATE_KEEP: 'reformulate_keep',

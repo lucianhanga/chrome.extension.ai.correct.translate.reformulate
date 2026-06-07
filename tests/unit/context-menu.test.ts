@@ -37,6 +37,11 @@ describe('resolveMenuAction', () => {
     expect(result).toEqual({ action: 'translate', targetLanguage: 'Romanian' });
   });
 
+  it('resolves translate_es to translate action with Spanish', () => {
+    const result = resolveMenuAction(CONTEXT_MENU_IDS.TRANSLATE_ES);
+    expect(result).toEqual({ action: 'translate', targetLanguage: 'Spanish' });
+  });
+
   it('resolves reformulate_keep to reformulate action with keep tone', () => {
     const result = resolveMenuAction(CONTEXT_MENU_IDS.REFORMULATE_KEEP);
     expect(result).toEqual({ action: 'reformulate', tone: 'keep' });
@@ -123,7 +128,7 @@ describe('registerContextMenus', () => {
     expect(translateParent?.parentId).toBe(CONTEXT_MENU_IDS.CT_ROOT);
   });
 
-  it('creates translate_en, translate_de, translate_ro as children of translate_parent', async () => {
+  it('creates translate_en, translate_de, translate_ro, translate_es as children of translate_parent', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chromeMock = (globalThis as any).chrome;
     await registerContextMenus();
@@ -135,6 +140,7 @@ describe('registerContextMenus', () => {
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_EN);
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_DE);
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_RO);
+    expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_ES);
   });
 
   it('creates the reformulate_parent menu item under ct_root', async () => {

@@ -59,7 +59,7 @@ const TERMINOLOGY_FREE = `Language rule: Reformulate in the dominant language of
 // into switching languages (the reported bug: English text reformulated into
 // Romanian under the professional tone). The output language is pinned to the
 // input language in BOTH directions.
-const LANGUAGE_LOCK = `FINAL AND MOST IMPORTANT RULE: The output language is locked to the language of the input. If the input is English, the output is English. If the input is Romanian, the output is Romanian. If the input is German, the output is German. This language rule overrides every tone, style, and formatting instruction above. Making the text more professional, formal, friendly, or natural NEVER means changing its language. Do not translate. Before writing, re-read the input, identify its language, and write your entire reformulation in that exact same language and in no other language.`;
+const LANGUAGE_LOCK = `FINAL AND MOST IMPORTANT RULE: The output language is locked to the language of the input. If the input is English, the output is English. If the input is Romanian, the output is Romanian. If the input is German, the output is German. If the input is Spanish, the output is Spanish. This language rule overrides every tone, style, and formatting instruction above. Making the text more professional, formal, friendly, or natural NEVER means changing its language. Do not translate. Before writing, re-read the input, identify its language, and write your entire reformulation in that exact same language and in no other language.`;
 
 const TONE_BLOCKS: Record<ReformulateTone, string> = {
   keep: TONE_KEEP,

@@ -59,10 +59,11 @@ describe('buildTranslateSystemPrompt', () => {
     expect(prompt).toContain('no explanations');
   });
 
-  it('handles all three target languages', () => {
+  it('handles all supported target languages', () => {
     expect(buildTranslateSystemPrompt('English')).toContain('English');
     expect(buildTranslateSystemPrompt('German')).toContain('German');
     expect(buildTranslateSystemPrompt('Romanian')).toContain('Romanian');
+    expect(buildTranslateSystemPrompt('Spanish')).toContain('Spanish');
   });
 });
 
@@ -110,6 +111,13 @@ describe('buildReformulateSystemPrompt', () => {
       expect(prompt).toContain('output language is locked to the language of the input');
       expect(prompt).toMatch(/NEVER means changing its language/);
       expect(prompt).toContain('overrides every tone');
+    }
+  });
+
+  it('enumerates every supported language in the language lock', () => {
+    const prompt = buildReformulateSystemPrompt('professional', true);
+    for (const lang of ['English', 'German', 'Romanian', 'Spanish']) {
+      expect(prompt).toContain(`the output is ${lang}`);
     }
   });
 

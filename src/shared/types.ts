@@ -5,7 +5,7 @@
 // Language Types
 // ============================================================
 
-export type SupportedLanguage = 'English' | 'German' | 'Romanian';
+export type SupportedLanguage = 'English' | 'German' | 'Romanian' | 'Spanish';
 
 export type ActionType = 'correct' | 'translate' | 'reformulate';
 
