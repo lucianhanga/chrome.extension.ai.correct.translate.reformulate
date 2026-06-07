@@ -67,7 +67,8 @@ for full setup and privacy details.
 
 ## Installation
 
-This extension is not on the Chrome Web Store; load it unpacked.
+This extension is not on the Chrome Web Store, so it is installed by loading it
+unpacked -- using either a prebuilt release (recommended) or your own build.
 
 ### 1. Get the extension files
 
@@ -83,8 +84,8 @@ folder is produced, or run `pnpm package` to create the zip yourself.
 
 1. Open `chrome://extensions`.
 2. Enable **Developer mode** (top-right toggle).
-3. Click **Load unpacked** and select the `dist/` folder (or the unzipped
-   package folder).
+3. Click **Load unpacked** and select the unzipped release folder (or the
+   `dist/` folder if you built from source).
 
 ### 3. Ollama prerequisite (default provider)
 
