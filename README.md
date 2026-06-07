@@ -8,7 +8,7 @@ against **OpenAI**.
 [![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
 ![tests](https://img.shields.io/badge/tests-300%20unit%20%7C%20120%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
-![version](https://img.shields.io/badge/version-1.4.0-1e3a5f)
+![version](https://img.shields.io/badge/version-1.5.0-1e3a5f)
 
 > The **CI** badge reflects the type-check, lint, unit-test and build workflow
 > that runs on every pull request and on `main`. The end-to-end suite needs a
@@ -174,8 +174,8 @@ The [`CI` workflow](.github/workflows/ci.yml) runs `pnpm typecheck`, `pnpm lint`
 push to `main`. The **CI** badge at the top of this README reflects it.
 
 The end-to-end suite (`pnpm test:e2e`) is **not** run in CI: it drives a real
-Chrome against a real local Ollama with the `qwen3:14b` model (~16 GB), which
-does not fit a GitHub-hosted runner. It remains a local pre-release gate.
+Chrome against a real local Ollama with the `gemma4:latest` model (~9.6 GB),
+which does not fit a GitHub-hosted runner. It remains a local pre-release gate.
 
 ## Architecture
 
