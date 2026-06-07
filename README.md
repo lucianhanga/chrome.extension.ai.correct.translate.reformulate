@@ -32,7 +32,10 @@ and **Append**.
 
 ## Features
 
-- Three text actions: Correct, Translate (EN / DE / RO), Reformulate (4 tones).
+- Three text actions: Correct, Translate (EN / DE / RO / ES), Reformulate (4 tones).
+- Language-aware: Correct and Reformulate keep the input/detected language (text
+  is never silently translated); Romanian translations are output without
+  diacritics (plain ASCII).
 - Dual provider: local **Ollama** (default, private) or **OpenAI** (opt-in).
 - Two entry points: the right-click **context menu** and the toolbar **popup**.
 - In-place **Replace** / **Append** for editable selections; clipboard copy for
@@ -81,7 +84,9 @@ is produced, or use the `correct-and-translate-<version>.zip` archive created by
 ### 3. Ollama prerequisite (default provider)
 
 If you use the default Ollama provider, Ollama must be running locally with a
-model pulled. The shipped default model is `gemma3:27b`.
+model pulled. The shipped default model is `gemma3:27b`. The Settings model
+dropdown also offers `qwen3.6:35b-a3b` (highest quality) and `gemma4:latest`
+(smallest); pull whichever you select.
 
 ```bash
 ollama pull gemma3:27b
@@ -154,15 +159,15 @@ pick up changes.
 
 ### Latest test run
 
-Run on the `main` branch on 2026-06-04, against a real local Ollama
-(model `qwen3:14b`):
+Run on the `main` branch on 2026-06-07, against a real local Ollama
+(model `gemma3:27b`):
 
 | Check | Result |
 |-------|--------|
 | `pnpm typecheck` (tsc, src + e2e) | pass |
 | `pnpm lint` (eslint) | pass |
-| `pnpm test` -- unit (Vitest) | 287 / 287 passed (16 files) |
-| `pnpm test:e2e` -- end-to-end (Playwright) | 119 / 119 passed (~1.2 min) |
+| `pnpm test` -- unit (Vitest) | 300 / 300 passed (17 files) |
+| `pnpm test:e2e` -- end-to-end (Playwright) | 120 / 120 passed (~1.7 min) |
 
 These figures are from a local run. The end-to-end suite is not part of CI
 (see below), so re-run it locally before a release.
