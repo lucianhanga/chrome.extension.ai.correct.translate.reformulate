@@ -14,7 +14,7 @@ export const ERROR_MESSAGES: Record<ErrorCode, string> = {
   OLLAMA_UNREACHABLE:
     'Cannot reach Ollama. Make sure it is running: ollama serve',
   MODEL_NOT_FOUND:
-    'Model not found. Pull it first: ollama pull qwen3:14b',
+    'Model not found. Pull it first: ollama pull qwen3.6:35b-a3b',
   REQUEST_TIMEOUT:
     'Request timed out. The model may be loading. Try again, or switch to a faster model (qwen3:14b) in settings.',
   EMPTY_INPUT:

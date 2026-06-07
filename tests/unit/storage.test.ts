@@ -1,7 +1,7 @@
 // tests/unit/storage.test.ts
 import { describe, it, expect, beforeAll, beforeEach } from 'vitest';
 import { installChromeMock, resetChromeMock, chromeMock } from '../mocks/chrome.ts';
-import { DEFAULT_SETTINGS, DEFAULT_OPENAI_MODEL } from '../../src/shared/constants.ts';
+import { DEFAULT_SETTINGS, DEFAULT_OPENAI_MODEL, DEFAULT_MODEL } from '../../src/shared/constants.ts';
 
 beforeAll(() => {
   installChromeMock();
@@ -16,6 +16,16 @@ async function getStorageModule() {
   // Dynamic import ensures chrome mock is in place before module evaluation
   return await import('../../src/shared/storage.ts');
 }
+
+describe('default Ollama model', () => {
+  // Guard the shipped default model. Chosen via a translation head-to-head:
+  // qwen3.6:35b-a3b matched the best quality and was the fastest of the
+  // quality-tier models, and is the documented recommended primary.
+  it('is qwen3.6:35b-a3b', () => {
+    expect(DEFAULT_MODEL).toBe('qwen3.6:35b-a3b');
+    expect(DEFAULT_SETTINGS.model).toBe('qwen3.6:35b-a3b');
+  });
+});
 
 describe('getSettings', () => {
   it('returns default settings when storage is empty', async () => {

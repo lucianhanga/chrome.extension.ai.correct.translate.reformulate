@@ -26,7 +26,7 @@ export const LANGUAGE_DISPLAY_NAMES: Record<SupportedLanguage, string> = {
 // ============================================================
 
 export const DEFAULT_OLLAMA_ENDPOINT = 'http://localhost:11434';
-export const DEFAULT_MODEL = 'qwen3:14b';
+export const DEFAULT_MODEL = 'qwen3.6:35b-a3b';
 export const FALLBACK_MODEL = 'qwen3:14b';
 
 // ============================================================

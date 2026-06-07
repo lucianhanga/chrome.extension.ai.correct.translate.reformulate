@@ -6,9 +6,9 @@ LLM by default** (fully private, nothing leaves your machine) or, opt-in,
 against **OpenAI**.
 
 [![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
-![tests](https://img.shields.io/badge/tests-291%20unit%20%7C%20120%20e2e-22c55e)
+![tests](https://img.shields.io/badge/tests-292%20unit%20%7C%20120%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
-![version](https://img.shields.io/badge/version-1.1.0-1e3a5f)
+![version](https://img.shields.io/badge/version-1.2.0-1e3a5f)
 
 > The **CI** badge reflects the type-check, lint, unit-test and build workflow
 > that runs on every pull request and on `main`. The end-to-end suite needs a
@@ -80,10 +80,10 @@ is produced, or use the `correct-and-translate-<version>.zip` archive created by
 ### 3. Ollama prerequisite (default provider)
 
 If you use the default Ollama provider, Ollama must be running locally with a
-model pulled. The shipped default model is `qwen3:14b`.
+model pulled. The shipped default model is `qwen3.6:35b-a3b`.
 
 ```bash
-ollama pull qwen3:14b
+ollama pull qwen3.6:35b-a3b
 ollama serve
 ```
 
