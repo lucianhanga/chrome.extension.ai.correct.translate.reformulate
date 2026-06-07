@@ -9,6 +9,7 @@ against **OpenAI**.
 ![tests](https://img.shields.io/badge/tests-300%20unit%20%7C%20120%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
 ![version](https://img.shields.io/badge/version-1.5.1-1e3a5f)
+[![release](https://img.shields.io/github/v/release/lucianhanga/chrome.extension.ai.correct.translate.reformulate)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/releases/latest)
 
 > The **CI** badge reflects the type-check, lint, unit-test and build workflow
 > that runs on every pull request and on `main`. The end-to-end suite needs a
@@ -70,9 +71,13 @@ This extension is not on the Chrome Web Store; load it unpacked.
 
 ### 1. Get the extension files
 
-Either build from source (see [Development](#development)) so a `dist/` folder
-is produced, or use the `correct-and-translate-<version>.zip` archive created by
-`pnpm package` and unzip it.
+**Easiest -- download a prebuilt release:** grab the latest
+`correct-and-translate-<version>.zip` from the
+[Releases](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/releases/latest)
+page and unzip it. No build required; the unzipped folder is loadable as-is.
+
+Alternatively, build from source (see [Development](#development)) so a `dist/`
+folder is produced, or run `pnpm package` to create the zip yourself.
 
 ### 2. Load it into Chrome
 
