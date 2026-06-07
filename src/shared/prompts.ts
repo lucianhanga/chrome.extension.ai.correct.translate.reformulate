@@ -28,9 +28,16 @@ If the input is empty, output nothing.`;
  * by the model.
  */
 export function buildTranslateSystemPrompt(targetLanguage: SupportedLanguage): string {
+  // When translating to Romanian, request plain ASCII (no diacritics). The
+  // service worker also strips diacritics deterministically, but instructing
+  // the model keeps the output clean at the source.
+  const romanianRule =
+    targetLanguage === 'Romanian'
+      ? '\nWrite the Romanian translation WITHOUT diacritics: use plain ASCII letters (a instead of ă or â, i instead of î, s instead of ș, t instead of ț).'
+      : '';
   return `You are a translation assistant.
 Detect the language of the input text automatically.
-Translate the text to ${targetLanguage}.
+Translate the text to ${targetLanguage}.${romanianRule}
 Output ONLY the translated text with no explanations, no quotes, no markdown.
 If the input is empty, output nothing.`;
 }

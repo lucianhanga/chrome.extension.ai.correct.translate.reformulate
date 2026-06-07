@@ -6,9 +6,9 @@ LLM by default** (fully private, nothing leaves your machine) or, opt-in,
 against **OpenAI**.
 
 [![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
-![tests](https://img.shields.io/badge/tests-292%20unit%20%7C%20120%20e2e-22c55e)
+![tests](https://img.shields.io/badge/tests-300%20unit%20%7C%20120%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
-![version](https://img.shields.io/badge/version-1.3.0-1e3a5f)
+![version](https://img.shields.io/badge/version-1.4.0-1e3a5f)
 
 > The **CI** badge reflects the type-check, lint, unit-test and build workflow
 > that runs on every pull request and on `main`. The end-to-end suite needs a
@@ -20,6 +20,7 @@ The extension acts on text you select on any page. It exposes three actions:
 
 - **Correct** -- fixes grammar and spelling.
 - **Translate** -- translates between English, German, Romanian, and Spanish.
+  Romanian translations are written without diacritics (plain ASCII).
 - **Reformulate** -- rewrites the text in one of four tones: Keep tone,
   Professional, Friendly, or Natural. A persistent **Keep terminology** toggle
   tells the model to leave domain terms unchanged.

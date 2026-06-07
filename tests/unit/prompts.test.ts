@@ -65,6 +65,13 @@ describe('buildTranslateSystemPrompt', () => {
     expect(buildTranslateSystemPrompt('Romanian')).toContain('Romanian');
     expect(buildTranslateSystemPrompt('Spanish')).toContain('Spanish');
   });
+
+  it('instructs no-diacritics output only when the target is Romanian', () => {
+    expect(buildTranslateSystemPrompt('Romanian')).toContain('WITHOUT diacritics');
+    expect(buildTranslateSystemPrompt('English')).not.toContain('WITHOUT diacritics');
+    expect(buildTranslateSystemPrompt('German')).not.toContain('WITHOUT diacritics');
+    expect(buildTranslateSystemPrompt('Spanish')).not.toContain('WITHOUT diacritics');
+  });
 });
 
 // ============================================================
