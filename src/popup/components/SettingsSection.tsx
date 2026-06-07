@@ -11,6 +11,7 @@ import {
 import { LanguageSelector } from './LanguageSelector.tsx';
 
 const AVAILABLE_OLLAMA_MODELS = [
+  'gemma4:latest',
   'qwen3.6:35b-a3b',
   'qwen3:14b',
 ] as const;
