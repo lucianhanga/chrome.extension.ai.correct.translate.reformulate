@@ -11,9 +11,9 @@ import {
 import { LanguageSelector } from './LanguageSelector.tsx';
 
 const AVAILABLE_OLLAMA_MODELS = [
-  'gemma4:latest',
   'gemma3:27b',
   'qwen3.6:35b-a3b',
+  'gemma4:latest',
 ] as const;
 
 // Sentinel returned by GET_SETTINGS when a key is stored but redacted.

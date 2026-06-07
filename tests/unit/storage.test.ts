@@ -18,11 +18,12 @@ async function getStorageModule() {
 }
 
 describe('default Ollama model', () => {
-  // Guard the shipped default model. Chosen for a small/fast footprint
-  // (~9.6 GB) at near-equal translation quality to the larger 27-35B models.
-  it('is gemma4:latest', () => {
-    expect(DEFAULT_MODEL).toBe('gemma4:latest');
-    expect(DEFAULT_SETTINGS.model).toBe('gemma4:latest');
+  // Guard the shipped default model. gemma3:27b reliably preserves the input
+  // language (the gemma4:latest default drifted EN->RO on reformulate, #32),
+  // with strong multilingual quality.
+  it('is gemma3:27b', () => {
+    expect(DEFAULT_MODEL).toBe('gemma3:27b');
+    expect(DEFAULT_SETTINGS.model).toBe('gemma3:27b');
   });
 });
 
