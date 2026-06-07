@@ -100,6 +100,29 @@ describe('buildReformulateSystemPrompt', () => {
     }
   });
 
+  it('locks the output language to the input language for every tone (no translation)', () => {
+    // Regression guard for the inverse bug: English text reformulated with the
+    // "professional" tone drifted into Romanian. The language lock must be
+    // present for all tones and must state that tone changes never change the
+    // language.
+    for (const tone of ['keep', 'professional', 'friendly', 'natural'] as const) {
+      const prompt = buildReformulateSystemPrompt(tone, true);
+      expect(prompt).toContain('output language is locked to the language of the input');
+      expect(prompt).toMatch(/NEVER means changing its language/);
+      expect(prompt).toContain('overrides every tone');
+    }
+  });
+
+  it('places the language lock after the tone block so it is the final instruction', () => {
+    // The lock is only effective if the model reads it last, after the tone
+    // instruction that biases language switching.
+    const prompt = buildReformulateSystemPrompt('professional', true);
+    const toneIdx = prompt.indexOf('professional, formal, and official');
+    const lockIdx = prompt.indexOf('output language is locked to the language of the input');
+    expect(toneIdx).toBeGreaterThan(-1);
+    expect(lockIdx).toBeGreaterThan(toneIdx);
+  });
+
   it('keep tone prompt instructs minimal deviation from original phrasing', () => {
     const prompt = buildReformulateSystemPrompt('keep', true);
     expect(prompt).toContain('same tone and register');

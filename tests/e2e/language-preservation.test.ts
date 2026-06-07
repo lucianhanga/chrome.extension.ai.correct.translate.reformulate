@@ -93,6 +93,46 @@ test.describe('Language preservation: Reformulate keeps Romanian', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Reformulate -- the inverse failing case (English drifting to Romanian)
+//
+// Reported follow-up bug: English text reformulated with the "professional"
+// tone came back translated into Romanian. The language lock must hold in both
+// directions, so the professional tone must keep English text in English.
+// ---------------------------------------------------------------------------
+
+test.describe('Language preservation: Reformulate keeps English', () => {
+  test('reformulate (professional tone) of English text returns English, not Romanian', async ({
+    openPopup,
+  }) => {
+    const popup = await openPopup();
+
+    // A clearly English, informal sentence so the professional tone has real
+    // work to do without any reason to switch languages.
+    const input =
+      "Hey, I wanna chat about the project tomorrow, it's kinda urgent and I'd need your help with it.";
+    await popup.locator('textarea').fill(input);
+
+    const toneSelect = popup
+      .locator('select')
+      .filter({ has: popup.locator('option[value="professional"]') });
+    await toneSelect.selectOption('professional');
+
+    await popup.getByRole('button', { name: /^Reformulate$/i }).click();
+
+    const result = await readResult(popup);
+
+    expect(
+      looksEnglish(result),
+      `Expected an English reformulation but got: ${result}`,
+    ).toBe(true);
+    expect(
+      looksRomanian(result),
+      `Reformulation drifted to Romanian: ${result}`,
+    ).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Grammar correction -- same language-preservation guarantee
 // ---------------------------------------------------------------------------
 

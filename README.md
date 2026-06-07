@@ -6,9 +6,9 @@ LLM by default** (fully private, nothing leaves your machine) or, opt-in,
 against **OpenAI**.
 
 [![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
-![tests](https://img.shields.io/badge/tests-287%20unit%20%7C%20119%20e2e-22c55e)
+![tests](https://img.shields.io/badge/tests-289%20unit%20%7C%20120%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
-![version](https://img.shields.io/badge/version-1.0.1-1e3a5f)
+![version](https://img.shields.io/badge/version-1.0.2-1e3a5f)
 
 > The **CI** badge reflects the type-check, lint, unit-test and build workflow
 > that runs on every pull request and on `main`. The end-to-end suite needs a
