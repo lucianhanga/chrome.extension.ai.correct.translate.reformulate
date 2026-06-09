@@ -244,6 +244,7 @@ const SUPPORTED_LANGUAGES_SET: ReadonlySet<string> = new Set([
   'German',
   'Romanian',
   'Spanish',
+  'Italian',
 ]);
 
 // ============================================================

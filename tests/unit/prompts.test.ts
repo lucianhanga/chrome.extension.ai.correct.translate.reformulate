@@ -65,6 +65,7 @@ describe('buildTranslateSystemPrompt', () => {
     expect(buildTranslateSystemPrompt('German')).toContain('German');
     expect(buildTranslateSystemPrompt('Romanian')).toContain('Romanian');
     expect(buildTranslateSystemPrompt('Spanish')).toContain('Spanish');
+    expect(buildTranslateSystemPrompt('Italian')).toContain('Italian');
   });
 
   it('instructs no-diacritics output only when the target is Romanian', () => {
@@ -124,7 +125,7 @@ describe('buildReformulateSystemPrompt', () => {
 
   it('enumerates every supported language in the language lock', () => {
     const prompt = buildReformulateSystemPrompt('professional', true);
-    for (const lang of ['English', 'German', 'Romanian', 'Spanish']) {
+    for (const lang of ['English', 'German', 'Romanian', 'Spanish', 'Italian']) {
       expect(prompt).toContain(`the output is ${lang}`);
     }
   });

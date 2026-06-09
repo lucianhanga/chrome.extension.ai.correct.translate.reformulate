@@ -103,7 +103,7 @@ Correct/Translate pair -- read it as applying to Reformulate equally.
 - Ollama runs locally on `http://localhost:11434`
 - User's machine: Apple M4 Pro, 48 GB unified memory
 - Model `qwen3.6:35b-a3b` is pulled and available
-- Only English, German, Romanian, and Spanish are supported
+- Only English, German, Romanian, Spanish, and Italian are supported
 - The user understands that LLM inference takes 5-40 seconds depending on model load state
 
 ### 1.4 High-Level Architecture Diagram

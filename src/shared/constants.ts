@@ -12,6 +12,7 @@ export const SUPPORTED_LANGUAGES: readonly SupportedLanguage[] = [
   'German',
   'Romanian',
   'Spanish',
+  'Italian',
 ] as const;
 
 export const LANGUAGE_DISPLAY_NAMES: Record<SupportedLanguage, string> = {
@@ -19,6 +20,17 @@ export const LANGUAGE_DISPLAY_NAMES: Record<SupportedLanguage, string> = {
   German: 'German',
   Romanian: 'Romanian',
   Spanish: 'Spanish',
+  Italian: 'Italian',
+};
+
+// Country flag emoji per language, used to decorate the context-menu Translate
+// items. Rendered as flags by Chrome on macOS. English uses the UK flag.
+export const LANGUAGE_FLAGS: Record<SupportedLanguage, string> = {
+  English: '🇬🇧',
+  German: '🇩🇪',
+  Romanian: '🇷🇴',
+  Spanish: '🇪🇸',
+  Italian: '🇮🇹',
 };
 
 // ============================================================
@@ -129,6 +141,7 @@ export const CONTEXT_MENU_IDS = {
   TRANSLATE_DE: 'translate_de',
   TRANSLATE_RO: 'translate_ro',
   TRANSLATE_ES: 'translate_es',
+  TRANSLATE_IT: 'translate_it',
   SEPARATOR_2: 'ct_sep_2',
   REFORMULATE_PARENT: 'reformulate_parent',
   REFORMULATE_KEEP: 'reformulate_keep',

@@ -42,6 +42,11 @@ describe('resolveMenuAction', () => {
     expect(result).toEqual({ action: 'translate', targetLanguage: 'Spanish' });
   });
 
+  it('resolves translate_it to translate action with Italian', () => {
+    const result = resolveMenuAction(CONTEXT_MENU_IDS.TRANSLATE_IT);
+    expect(result).toEqual({ action: 'translate', targetLanguage: 'Italian' });
+  });
+
   it('resolves reformulate_keep to reformulate action with keep tone', () => {
     const result = resolveMenuAction(CONTEXT_MENU_IDS.REFORMULATE_KEEP);
     expect(result).toEqual({ action: 'reformulate', tone: 'keep' });
@@ -143,7 +148,7 @@ describe('registerContextMenus', () => {
     expect(translateParent?.parentId).toBe(CONTEXT_MENU_IDS.CT_ROOT);
   });
 
-  it('creates translate_en, translate_de, translate_ro, translate_es as children of translate_parent', async () => {
+  it('creates translate_en, translate_de, translate_ro, translate_es, translate_it as children of translate_parent', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chromeMock = (globalThis as any).chrome;
     await registerContextMenus();
@@ -156,6 +161,22 @@ describe('registerContextMenus', () => {
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_DE);
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_RO);
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_ES);
+    expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_IT);
+  });
+
+  it('prefixes each translate item title with its country flag', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const chromeMock = (globalThis as any).chrome;
+    await registerContextMenus();
+    const createCalls: Array<{ id: string; title?: string }> =
+      chromeMock.contextMenus.create.mock.calls.map((c: [unknown]) => c[0]);
+    const byId = (id: string): string | undefined =>
+      createCalls.find((c) => c.id === id)?.title;
+    expect(byId(CONTEXT_MENU_IDS.TRANSLATE_EN)).toBe('🇬🇧 English');
+    expect(byId(CONTEXT_MENU_IDS.TRANSLATE_DE)).toBe('🇩🇪 German');
+    expect(byId(CONTEXT_MENU_IDS.TRANSLATE_RO)).toBe('🇷🇴 Romanian');
+    expect(byId(CONTEXT_MENU_IDS.TRANSLATE_ES)).toBe('🇪🇸 Spanish');
+    expect(byId(CONTEXT_MENU_IDS.TRANSLATE_IT)).toBe('🇮🇹 Italian');
   });
 
   it('creates the reformulate_parent menu item under ct_root', async () => {
