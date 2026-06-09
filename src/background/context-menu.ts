@@ -2,7 +2,7 @@
 // Context menu registration and menu item ID to action mapping.
 
 import type { SupportedLanguage, ActionType, ReformulateTone, SummarizeLength } from '../shared/types.ts';
-import { CONTEXT_MENU_IDS } from '../shared/constants.ts';
+import { CONTEXT_MENU_IDS, LANGUAGE_FLAGS, LANGUAGE_DISPLAY_NAMES } from '../shared/constants.ts';
 import { getSettings } from '../shared/storage.ts';
 
 // ============================================================
@@ -56,28 +56,35 @@ export async function registerContextMenus(): Promise<void> {
   chrome.contextMenus.create({
     id: CONTEXT_MENU_IDS.TRANSLATE_EN,
     parentId: CONTEXT_MENU_IDS.TRANSLATE_PARENT,
-    title: 'English',
+    title: `${LANGUAGE_FLAGS.English} ${LANGUAGE_DISPLAY_NAMES.English}`,
     contexts: ['selection'],
   });
 
   chrome.contextMenus.create({
     id: CONTEXT_MENU_IDS.TRANSLATE_DE,
     parentId: CONTEXT_MENU_IDS.TRANSLATE_PARENT,
-    title: 'German',
+    title: `${LANGUAGE_FLAGS.German} ${LANGUAGE_DISPLAY_NAMES.German}`,
     contexts: ['selection'],
   });
 
   chrome.contextMenus.create({
     id: CONTEXT_MENU_IDS.TRANSLATE_RO,
     parentId: CONTEXT_MENU_IDS.TRANSLATE_PARENT,
-    title: 'Romanian',
+    title: `${LANGUAGE_FLAGS.Romanian} ${LANGUAGE_DISPLAY_NAMES.Romanian}`,
     contexts: ['selection'],
   });
 
   chrome.contextMenus.create({
     id: CONTEXT_MENU_IDS.TRANSLATE_ES,
     parentId: CONTEXT_MENU_IDS.TRANSLATE_PARENT,
-    title: 'Spanish',
+    title: `${LANGUAGE_FLAGS.Spanish} ${LANGUAGE_DISPLAY_NAMES.Spanish}`,
+    contexts: ['selection'],
+  });
+
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_IDS.TRANSLATE_IT,
+    parentId: CONTEXT_MENU_IDS.TRANSLATE_PARENT,
+    title: `${LANGUAGE_FLAGS.Italian} ${LANGUAGE_DISPLAY_NAMES.Italian}`,
     contexts: ['selection'],
   });
 
@@ -209,6 +216,8 @@ export function resolveMenuAction(menuItemId: string): ResolvedMenuAction | null
       return { action: 'translate', targetLanguage: 'Romanian' };
     case CONTEXT_MENU_IDS.TRANSLATE_ES:
       return { action: 'translate', targetLanguage: 'Spanish' };
+    case CONTEXT_MENU_IDS.TRANSLATE_IT:
+      return { action: 'translate', targetLanguage: 'Italian' };
     case CONTEXT_MENU_IDS.REFORMULATE_KEEP:
       return { action: 'reformulate', tone: 'keep' };
     case CONTEXT_MENU_IDS.REFORMULATE_PROFESSIONAL:

@@ -6,9 +6,9 @@ LLM by default** (fully private, nothing leaves your machine) or, opt-in,
 against **OpenAI**.
 
 [![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
-![tests](https://img.shields.io/badge/tests-318%20unit%20%7C%20127%20e2e-22c55e)
+![tests](https://img.shields.io/badge/tests-320%20unit%20%7C%20127%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
-![version](https://img.shields.io/badge/version-1.6.0-1e3a5f)
+![version](https://img.shields.io/badge/version-1.7.0-1e3a5f)
 [![release](https://img.shields.io/github/v/release/lucianhanga/chrome.extension.ai.correct.translate.reformulate)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/releases/latest)
 
 > The **CI** badge reflects the type-check, lint, unit-test and build workflow
@@ -20,7 +20,7 @@ against **OpenAI**.
 The extension acts on text you select on any page. It exposes four actions:
 
 - **Correct** -- fixes grammar and spelling.
-- **Translate** -- translates between English, German, Romanian, and Spanish.
+- **Translate** -- translates between English, German, Romanian, Spanish, and Italian.
   Romanian translations are written without diacritics (plain ASCII).
 - **Reformulate** -- rewrites the text in one of four tones: Keep tone,
   Professional, Friendly, or Natural. A persistent **Keep terminology** toggle
@@ -35,8 +35,8 @@ and **Append**.
 
 ## Features
 
-- Four text actions: Correct, Translate (EN / DE / RO / ES), Reformulate (4 tones),
-  Summarize (3 lengths).
+- Four text actions: Correct, Translate (EN / DE / RO / ES / IT), Reformulate (4 tones),
+  Summarize (3 lengths). The context-menu Translate items show country flags.
 - Language-aware: Correct, Reformulate, and Summarize keep the input/detected
   language (text is never silently translated); Romanian translations are output
   without diacritics (plain ASCII).
@@ -168,15 +168,15 @@ pick up changes.
 
 ### Latest test run
 
-Run on the `main` branch on 2026-06-07, against a real local Ollama
+Run on the `main` branch on 2026-06-09, against a real local Ollama
 (model `gemma3:27b`):
 
 | Check | Result |
 |-------|--------|
 | `pnpm typecheck` (tsc, src + e2e) | pass |
 | `pnpm lint` (eslint) | pass |
-| `pnpm test` -- unit (Vitest) | 300 / 300 passed (17 files) |
-| `pnpm test:e2e` -- end-to-end (Playwright) | 120 / 120 passed (~1.7 min) |
+| `pnpm test` -- unit (Vitest) | 320 / 320 passed (17 files) |
+| `pnpm test:e2e` -- end-to-end (Playwright) | 127 / 127 passed (~1.8 min) |
 
 These figures are from a local run. The end-to-end suite is not part of CI
 (see below), so re-run it locally before a release.
