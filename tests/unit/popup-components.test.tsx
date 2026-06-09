@@ -261,6 +261,7 @@ describe('QuickAction', () => {
         provider="ollama"
         defaultReformulateTone="keep"
         keepTerminology={true}
+        defaultSummarizeLength="standard"
       />,
     );
 
@@ -287,6 +288,7 @@ describe('QuickAction', () => {
         provider="openai"
         defaultReformulateTone="keep"
         keepTerminology={true}
+        defaultSummarizeLength="standard"
       />,
     );
 
@@ -316,6 +318,7 @@ describe('QuickAction', () => {
         provider="ollama"
         defaultReformulateTone="keep"
         keepTerminology={true}
+        defaultSummarizeLength="standard"
       />,
     );
 
@@ -338,6 +341,7 @@ describe('QuickAction', () => {
         provider="ollama"
         defaultReformulateTone="keep"
         keepTerminology={true}
+        defaultSummarizeLength="standard"
       />,
     );
     expect(within(container).getByRole('button', { name: /^Reformulate$/i })).toBeInTheDocument();
@@ -351,6 +355,7 @@ describe('QuickAction', () => {
         provider="ollama"
         defaultReformulateTone="professional"
         keepTerminology={true}
+        defaultSummarizeLength="standard"
       />,
     );
     // The tone select should be present and have 'professional' as selected value.
@@ -370,6 +375,7 @@ describe('QuickAction', () => {
         provider="ollama"
         defaultReformulateTone="keep"
         keepTerminology={true}
+        defaultSummarizeLength="standard"
       />,
     );
 
@@ -401,6 +407,7 @@ describe('QuickAction', () => {
         provider="ollama"
         defaultReformulateTone="keep"
         keepTerminology={true}
+        defaultSummarizeLength="standard"
       />,
     );
 
@@ -436,6 +443,7 @@ describe('QuickAction', () => {
         provider="ollama"
         defaultReformulateTone="professional"
         keepTerminology={false}
+        defaultSummarizeLength="standard"
       />,
     );
 
@@ -501,6 +509,7 @@ describe('SettingsSection', () => {
     openaiConsentAcknowledged: false,
     keepTerminology: true,
     defaultReformulateTone: 'keep' as const,
+    defaultSummarizeLength: 'standard' as const,
   };
 
   it('renders the Ollama and OpenAI provider toggle buttons', async () => {

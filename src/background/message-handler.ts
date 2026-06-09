@@ -6,6 +6,7 @@ import {
   isCorrectGrammarRequest,
   isTranslateRequest,
   isReformulateRequest,
+  isSummarizeRequest,
   isHealthCheckRequest,
   isGetSettingsRequest,
   isSaveSettingsRequest,
@@ -15,7 +16,7 @@ import {
 import { validateTextInput } from '../shared/validators.ts';
 import { classifyError, getUserMessage } from '../shared/errors.ts';
 import { getSettings, saveSettings } from '../shared/storage.ts';
-import { correctGrammar, translateText, reformulateText } from './tasks.ts';
+import { correctGrammar, translateText, reformulateText, summarizeText } from './tasks.ts';
 import { checkOllamaHealth } from './ollama-client.ts';
 import { getActiveClient } from './llm-client.ts';
 import { checkOpenAIHealth } from './openai-client.ts';
@@ -163,6 +164,36 @@ export async function handleMessage(message: unknown): Promise<ServiceWorkerResp
         message.payload.tone,
         message.payload.keepTerminology,
         { model, temperature },
+      );
+
+      return {
+        success: true,
+        result: llmResult.text,
+        model: llmResult.model,
+        totalTokens: llmResult.totalTokens,
+        elapsedMs: llmResult.elapsedMs,
+      };
+    }
+
+    // SUMMARIZE
+    if (isSummarizeRequest(message)) {
+      const validation = validateTextInput(message.payload.text);
+      if (!validation.valid) {
+        return errorResponse(
+          validation.errorCode ?? 'INVALID_MESSAGE',
+          validation.errorMessage,
+        );
+      }
+
+      const settings = await getSettings();
+      const client = getActiveClient(settings);
+      const model = settings.provider === 'openai' ? settings.openaiModel : settings.model;
+
+      const llmResult = await summarizeText(
+        client,
+        message.payload.text,
+        message.payload.length,
+        { model, temperature: 0.3 },
       );
 
       return {

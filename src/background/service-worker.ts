@@ -175,6 +175,20 @@ function handleContextMenuClick(
         return null;
       }
 
+      // Summarize: hand off to the content script, which runs the
+      // summarize-and-show-result flow itself.
+      if (resolvedAction.action === 'summarize' && resolvedAction.length !== undefined) {
+        sendToContentScript(tabId, frameId, {
+          type: 'START_SUMMARIZE',
+          payload: {
+            originalText: selectionText,
+            length: resolvedAction.length,
+            provider: settings.provider,
+          },
+        });
+        return null;
+      }
+
       // Correct: the service worker drives loading -> result.
       const loadingMsg: ServiceWorkerToContentScriptMessage = {
         type: 'SHOW_LOADING',

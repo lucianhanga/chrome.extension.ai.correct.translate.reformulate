@@ -7,6 +7,8 @@ import {
   isTranslateRequest,
   isReformulateRequest,
   isReformulateTone,
+  isSummarizeRequest,
+  isSummarizeLength,
   isHealthCheckRequest,
   isGetSettingsRequest,
   isSaveSettingsRequest,
@@ -334,5 +336,52 @@ describe('isReformulateRequest', () => {
 
   it('rejects null', () => {
     expect(isReformulateRequest(null)).toBe(false);
+  });
+});
+
+describe('isSummarizeLength', () => {
+  it('accepts the three valid lengths', () => {
+    expect(isSummarizeLength('brief')).toBe(true);
+    expect(isSummarizeLength('standard')).toBe(true);
+    expect(isSummarizeLength('detailed')).toBe(true);
+  });
+
+  it('rejects invalid lengths', () => {
+    expect(isSummarizeLength('short')).toBe(false);
+    expect(isSummarizeLength('')).toBe(false);
+    expect(isSummarizeLength(null)).toBe(false);
+    expect(isSummarizeLength(undefined)).toBe(false);
+  });
+});
+
+describe('isSummarizeRequest', () => {
+  it('accepts a valid SUMMARIZE message', () => {
+    const msg = { type: 'SUMMARIZE', payload: { text: 'Some long text.', length: 'standard' } };
+    expect(isSummarizeRequest(msg)).toBe(true);
+  });
+
+  it('accepts all three lengths', () => {
+    for (const length of ['brief', 'standard', 'detailed']) {
+      expect(isSummarizeRequest({
+        type: 'SUMMARIZE',
+        payload: { text: 'Some long text.', length },
+      })).toBe(true);
+    }
+  });
+
+  it('rejects an invalid length', () => {
+    expect(isSummarizeRequest({
+      type: 'SUMMARIZE',
+      payload: { text: 'Some long text.', length: 'tiny' },
+    })).toBe(false);
+  });
+
+  it('rejects non-string text', () => {
+    expect(isSummarizeRequest({ type: 'SUMMARIZE', payload: { text: 123, length: 'brief' } })).toBe(false);
+  });
+
+  it('rejects wrong type and null', () => {
+    expect(isSummarizeRequest({ type: 'REFORMULATE', payload: { text: 'x', length: 'brief' } })).toBe(false);
+    expect(isSummarizeRequest(null)).toBe(false);
   });
 });

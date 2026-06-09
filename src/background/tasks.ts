@@ -1,12 +1,13 @@
 // src/background/tasks.ts
 // High-level task functions for grammar correction and translation.
 
-import type { LLMResult, SupportedLanguage, OllamaCallOptions, ReformulateTone } from '../shared/types.ts';
+import type { LLMResult, SupportedLanguage, OllamaCallOptions, ReformulateTone, SummarizeLength } from '../shared/types.ts';
 import { callOllama } from './ollama-client.ts';
 import {
   GRAMMAR_CORRECT_SYSTEM,
   buildTranslateSystemPrompt,
   buildReformulateSystemPrompt,
+  buildSummarizeSystemPrompt,
 } from '../shared/prompts.ts';
 import type { LLMClient, LLMCallOptions } from './llm-client.ts';
 
@@ -79,5 +80,29 @@ export async function reformulateText(
   options: LLMCallOptions,
 ): Promise<LLMResult> {
   const systemPrompt = buildReformulateSystemPrompt(tone, keepTerminology);
+  return client.call(systemPrompt, text, options);
+}
+
+// ============================================================
+// Summarization
+// ============================================================
+
+/**
+ * Summarize text using the provider-agnostic LLMClient. The summary stays in
+ * the input/detected language; `length` controls how short it is.
+ *
+ * @param client - The active LLM client (Ollama or OpenAI)
+ * @param text - The text to summarize
+ * @param length - The summary length ('brief' | 'standard' | 'detailed')
+ * @param options - Model name and optional temperature override
+ * @returns LLMResult with the summary and metadata
+ */
+export async function summarizeText(
+  client: LLMClient,
+  text: string,
+  length: SummarizeLength,
+  options: LLMCallOptions,
+): Promise<LLMResult> {
+  const systemPrompt = buildSummarizeSystemPrompt(length);
   return client.call(systemPrompt, text, options);
 }

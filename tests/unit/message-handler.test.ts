@@ -14,6 +14,7 @@ vi.mock('../../src/background/tasks.ts', () => ({
   correctGrammar: vi.fn(),
   translateText: vi.fn(),
   reformulateText: vi.fn(),
+  summarizeText: vi.fn(),
 }));
 
 // Mock Ollama health check
@@ -241,6 +242,33 @@ describe('handleMessage', () => {
     });
 
     expect(response).toMatchObject({ success: false, errorCode: 'REQUEST_TIMEOUT' });
+  });
+
+  it('handles SUMMARIZE and returns success', async () => {
+    const { summarizeText } = await import('../../src/background/tasks.ts');
+    vi.mocked(summarizeText).mockResolvedValue(llmResult('A short summary.'));
+
+    const { handleMessage } = await import('../../src/background/message-handler.ts');
+    const response = await handleMessage({
+      type: 'SUMMARIZE',
+      payload: { text: 'A very long piece of text that needs summarizing.', length: 'standard' },
+    });
+
+    expect(response).toMatchObject({ success: true, result: 'A short summary.' });
+    expect(summarizeText).toHaveBeenCalledTimes(1);
+    const call = vi.mocked(summarizeText).mock.calls[0]!;
+    expect(call[1]).toBe('A very long piece of text that needs summarizing.');
+    expect(call[2]).toBe('standard');
+    expect(call[3]).toMatchObject({ model: expect.any(String) });
+  });
+
+  it('returns EMPTY_INPUT for SUMMARIZE with empty text', async () => {
+    const { handleMessage } = await import('../../src/background/message-handler.ts');
+    const response = await handleMessage({
+      type: 'SUMMARIZE',
+      payload: { text: '', length: 'brief' },
+    });
+    expect(response).toMatchObject({ success: false, errorCode: 'EMPTY_INPUT' });
   });
 });
 

@@ -102,6 +102,7 @@ export function Popup(): React.ReactElement {
               provider={settings.provider}
               defaultReformulateTone={settings.defaultReformulateTone}
               keepTerminology={settings.keepTerminology}
+              defaultSummarizeLength={settings.defaultSummarizeLength}
             />
           ) : (
             <div className="flex items-center justify-center py-6">

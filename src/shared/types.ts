@@ -7,13 +7,19 @@
 
 export type SupportedLanguage = 'English' | 'German' | 'Romanian' | 'Spanish';
 
-export type ActionType = 'correct' | 'translate' | 'reformulate';
+export type ActionType = 'correct' | 'translate' | 'reformulate' | 'summarize';
 
 // ============================================================
 // Reformulate Types
 // ============================================================
 
 export type ReformulateTone = 'keep' | 'professional' | 'friendly' | 'natural';
+
+// ============================================================
+// Summarize Types
+// ============================================================
+
+export type SummarizeLength = 'brief' | 'standard' | 'detailed';
 
 // ============================================================
 // Provider Types
@@ -41,6 +47,9 @@ export interface ExtensionSettings {
   // Reformulate settings
   keepTerminology: boolean;             // keep-terminology checkbox state; default true
   defaultReformulateTone: ReformulateTone; // last-used reformulate tone; default 'keep'
+
+  // Summarize settings
+  defaultSummarizeLength: SummarizeLength; // last-used summary length; default 'standard'
 }
 
 // ============================================================

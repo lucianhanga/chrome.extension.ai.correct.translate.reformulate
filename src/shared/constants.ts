@@ -1,7 +1,7 @@
 // src/shared/constants.ts
 // Shared constants used across extension contexts.
 
-import type { SupportedLanguage, ExtensionSettings, OpenAIModel, ReformulateTone } from './types.ts';
+import type { SupportedLanguage, ExtensionSettings, OpenAIModel, ReformulateTone, SummarizeLength } from './types.ts';
 
 // ============================================================
 // Supported Languages
@@ -79,6 +79,7 @@ export const DEFAULT_SETTINGS: ExtensionSettings = {
   openaiConsentAcknowledged: false,
   keepTerminology: true,
   defaultReformulateTone: 'keep',
+  defaultSummarizeLength: 'standard',
 };
 
 // ============================================================
@@ -97,6 +98,22 @@ export const REFORMULATE_TONE_LABELS: Record<ReformulateTone, string> = {
   professional: 'Professional',
   friendly: 'Friendly',
   natural: 'Natural',
+};
+
+// ============================================================
+// Summarize Length Constants
+// ============================================================
+
+export const SUMMARIZE_LENGTHS: readonly SummarizeLength[] = [
+  'brief',
+  'standard',
+  'detailed',
+] as const;
+
+export const SUMMARIZE_LENGTH_LABELS: Record<SummarizeLength, string> = {
+  brief: 'Brief',
+  standard: 'Standard',
+  detailed: 'Detailed',
 };
 
 // ============================================================
@@ -119,6 +136,11 @@ export const CONTEXT_MENU_IDS = {
   REFORMULATE_FRIENDLY: 'reformulate_friendly',
   REFORMULATE_NATURAL: 'reformulate_natural',
   SEPARATOR_3: 'ct_sep_3',
+  SUMMARIZE_PARENT: 'summarize_parent',
+  SUMMARIZE_BRIEF: 'summarize_brief',
+  SUMMARIZE_STANDARD: 'summarize_standard',
+  SUMMARIZE_DETAILED: 'summarize_detailed',
+  SEPARATOR_4: 'ct_sep_4',
   KEEP_TERMINOLOGY: 'keep_terminology',
 } as const;
 

@@ -2,7 +2,7 @@
 // Text area + action buttons for quick correction, translation, or reformulation from the popup.
 
 import React, { useState } from 'react';
-import type { LLMProvider, SupportedLanguage, ReformulateTone } from '../../shared/types.ts';
+import type { LLMProvider, SupportedLanguage, ReformulateTone, SummarizeLength } from '../../shared/types.ts';
 import type {
   SuccessResponse,
   ErrorResponse,
@@ -11,6 +11,7 @@ import type {
 import { MAX_INPUT_LENGTH } from '../../shared/constants.ts';
 import { LanguageSelector } from './LanguageSelector.tsx';
 import { ToneSelector } from './ToneSelector.tsx';
+import { LengthSelector } from './LengthSelector.tsx';
 import { ResultDisplay } from './ResultDisplay.tsx';
 
 interface QuickActionProps {
@@ -18,6 +19,7 @@ interface QuickActionProps {
   provider: LLMProvider;
   defaultReformulateTone: ReformulateTone;
   keepTerminology: boolean;
+  defaultSummarizeLength: SummarizeLength;
 }
 
 interface ResultState {
@@ -33,11 +35,13 @@ export function QuickAction({
   provider,
   defaultReformulateTone,
   keepTerminology: initialKeepTerminology,
+  defaultSummarizeLength,
 }: QuickActionProps): React.ReactElement {
   const [inputText, setInputText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState<SupportedLanguage>(defaultTargetLanguage);
   const [tone, setTone] = useState<ReformulateTone>(defaultReformulateTone);
   const [keepTerminology, setKeepTerminology] = useState<boolean>(initialKeepTerminology);
+  const [summarizeLength, setSummarizeLength] = useState<SummarizeLength>(defaultSummarizeLength);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<ResultState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -65,6 +69,15 @@ export function QuickAction({
       payload: { settings: { keepTerminology: value } },
     }).catch((err: unknown) => {
       console.error('[QuickAction] Failed to persist keepTerminology:', err);
+    });
+  };
+
+  const persistSummarizeLength = (newLength: SummarizeLength): void => {
+    chrome.runtime.sendMessage({
+      type: 'SAVE_SETTINGS',
+      payload: { settings: { defaultSummarizeLength: newLength } },
+    }).catch((err: unknown) => {
+      console.error('[QuickAction] Failed to persist defaultSummarizeLength:', err);
     });
   };
 
@@ -172,6 +185,39 @@ export function QuickAction({
     }
   };
 
+  const handleSummarize = async (): Promise<void> => {
+    if (isEmpty || overLimit || loading) return;
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const response = await chrome.runtime.sendMessage({
+        type: 'SUMMARIZE',
+        payload: { text: inputText, length: summarizeLength },
+      }) as ServiceWorkerResponse;
+
+      if (isSuccessResponse(response)) {
+        setResult({
+          originalText: inputText,
+          resultText: response.result,
+          model: response.model,
+          totalTokens: response.totalTokens,
+          elapsedMs: response.elapsedMs,
+        });
+      } else if (isErrorResponse(response)) {
+        setError(response.error);
+      } else {
+        setError('Unexpected response from service worker.');
+      }
+    } catch (err) {
+      setError('Failed to communicate with extension service worker.');
+      console.error('[QuickAction] summarize error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="flex flex-col gap-3">
       {/* Text input */}
@@ -255,6 +301,16 @@ export function QuickAction({
         </label>
       </div>
 
+      {/* Summary length for summarization */}
+      <LengthSelector
+        value={summarizeLength}
+        onChange={(newLength) => {
+          setSummarizeLength(newLength);
+          persistSummarizeLength(newLength);
+        }}
+        disabled={loading}
+      />
+
       {/* Action buttons */}
       <div className="flex gap-2">
         <button
@@ -310,6 +366,24 @@ export function QuickAction({
           "
         >
           {loading ? 'Processing...' : 'Reformulate'}
+        </button>
+        <button
+          onClick={() => {
+            handleSummarize().catch((err: unknown) => {
+              console.error('[QuickAction] handleSummarize unhandled:', err);
+            });
+          }}
+          disabled={isEmpty || overLimit || loading}
+          className="
+            flex-1 py-2 rounded-md text-sm font-semibold
+            bg-[#313244] text-[#cdd6f4]
+            hover:bg-[#45475a] active:brightness-90
+            transition-colors duration-100
+            focus:outline-none focus:ring-2 focus:ring-[#89b4fa] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]
+            disabled:opacity-40 disabled:cursor-not-allowed
+          "
+        >
+          {loading ? 'Processing...' : 'Summarize'}
         </button>
       </div>
 
