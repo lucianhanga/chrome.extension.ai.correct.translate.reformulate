@@ -4,6 +4,7 @@ import {
   GRAMMAR_CORRECT_SYSTEM,
   buildTranslateSystemPrompt,
   buildReformulateSystemPrompt,
+  buildSummarizeSystemPrompt,
 } from '../../src/shared/prompts.ts';
 
 describe('GRAMMAR_CORRECT_SYSTEM', () => {
@@ -188,5 +189,50 @@ describe('buildReformulateSystemPrompt', () => {
     const withKeep = buildReformulateSystemPrompt('professional', true);
     const withoutKeep = buildReformulateSystemPrompt('professional', false);
     expect(withKeep).not.toBe(withoutKeep);
+  });
+});
+
+// ============================================================
+// buildSummarizeSystemPrompt
+// ============================================================
+
+describe('buildSummarizeSystemPrompt', () => {
+  it('returns a non-empty string for every length', () => {
+    for (const length of ['brief', 'standard', 'detailed'] as const) {
+      const prompt = buildSummarizeSystemPrompt(length);
+      expect(typeof prompt).toBe('string');
+      expect(prompt.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('always includes the core summarization constraints', () => {
+    const prompt = buildSummarizeSystemPrompt('standard');
+    expect(prompt).toContain('summarization assistant');
+    expect(prompt).toContain('Output ONLY the summary');
+    expect(prompt).toContain('detect the language');
+  });
+
+  it('locks the output language to the input language for every length', () => {
+    // Regression guard: summarizing must never translate (mirrors reformulate).
+    for (const length of ['brief', 'standard', 'detailed'] as const) {
+      const prompt = buildSummarizeSystemPrompt(length);
+      expect(prompt).toContain('output language is locked to the language of the input');
+      expect(prompt).toMatch(/Summarizing NEVER means translating/);
+    }
+  });
+
+  it('uses a length-specific instruction', () => {
+    expect(buildSummarizeSystemPrompt('brief')).toContain('single concise sentence');
+    expect(buildSummarizeSystemPrompt('standard')).toContain('two to four sentences');
+    expect(buildSummarizeSystemPrompt('detailed')).toContain('one paragraph');
+  });
+
+  it('produces a different prompt for each length', () => {
+    const all = [
+      buildSummarizeSystemPrompt('brief'),
+      buildSummarizeSystemPrompt('standard'),
+      buildSummarizeSystemPrompt('detailed'),
+    ];
+    expect(new Set(all).size).toBe(3);
   });
 });

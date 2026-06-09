@@ -13,6 +13,7 @@ import type {
   ErrorResponse,
   SupportedLanguage,
   ReformulateTone,
+  SummarizeLength,
 } from '../shared/messages.ts';
 import {
   showLoading,
@@ -134,6 +135,16 @@ function handleMessage(message: ServiceWorkerToContentScriptMessage): void {
         message.payload.provider,
       ).catch((err: unknown) => {
         console.error('[content] reformulate flow failed:', err);
+      });
+      break;
+
+    case 'START_SUMMARIZE':
+      runSummarizeFlow(
+        message.payload.originalText,
+        message.payload.length,
+        message.payload.provider,
+      ).catch((err: unknown) => {
+        console.error('[content] summarize flow failed:', err);
       });
       break;
 
@@ -308,6 +319,86 @@ async function runReformulateFlow(
 }
 
 // ============================================================
+// Summarize Flow
+// ============================================================
+
+/**
+ * Summarize the selected text and render the result.
+ * Modelled exactly on runReformulateFlow. The summary stays in the input
+ * language; `length` controls how short it is. Replace/Append act on the
+ * captured selection when editable.
+ */
+async function runSummarizeFlow(
+  originalText: string,
+  length: SummarizeLength,
+  provider: import('../shared/types.ts').LLMProvider = 'ollama',
+): Promise<void> {
+  const target = captureSelectionTarget();
+
+  showLoading('summarize', originalText, provider);
+
+  let response: ServiceWorkerResponse;
+  try {
+    response = (await chrome.runtime.sendMessage({
+      type: 'SUMMARIZE',
+      payload: { text: originalText, length },
+    })) as ServiceWorkerResponse;
+  } catch (err) {
+    console.error('[content] summarize request failed:', err);
+    showError({
+      errorCode: 'OLLAMA_UNREACHABLE',
+      errorMessage: 'Could not reach the extension service worker.',
+    });
+    return;
+  }
+
+  if (isErrorResponse(response)) {
+    showError({ errorCode: response.errorCode, errorMessage: response.error });
+    return;
+  }
+  if (!isSuccessResponse(response)) {
+    showError({
+      errorCode: 'UNEXPECTED_RESPONSE',
+      errorMessage: 'Unexpected response from the extension service worker.',
+    });
+    return;
+  }
+
+  const summary = response.result;
+
+  // Auto-copy so the summary is immediately pasteable.
+  await copyResultToClipboard(summary);
+
+  showResult(
+    {
+      action: 'summarize',
+      length,
+      originalText,
+      resultText: summary,
+      editable: isEditableTarget(target),
+      model: response.model,
+      totalTokens: response.totalTokens,
+      elapsedMs: response.elapsedMs,
+    },
+    {
+      onReplace: (text: string) => {
+        replaceCaptured(target, text).catch((e: unknown) => {
+          console.error('[content] replace failed:', e);
+        });
+      },
+      onAppend: (text: string) => {
+        appendCaptured(target, text).catch((e: unknown) => {
+          console.error('[content] append failed:', e);
+        });
+      },
+      onReject: () => {
+        // No action needed.
+      },
+    },
+  );
+}
+
+// ============================================================
 // Response Type Guards
 // ============================================================
 
@@ -333,6 +424,7 @@ function isServiceWorkerMessage(msg: unknown): msg is ServiceWorkerToContentScri
     type === 'SHOW_ERROR' ||
     type === 'DISMISS_OVERLAY' ||
     type === 'START_TRANSLATE' ||
-    type === 'START_REFORMULATE'
+    type === 'START_REFORMULATE' ||
+    type === 'START_SUMMARIZE'
   );
 }

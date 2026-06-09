@@ -62,6 +62,21 @@ describe('resolveMenuAction', () => {
     expect(result).toEqual({ action: 'reformulate', tone: 'natural' });
   });
 
+  it('resolves summarize_brief to summarize action with brief length', () => {
+    const result = resolveMenuAction(CONTEXT_MENU_IDS.SUMMARIZE_BRIEF);
+    expect(result).toEqual({ action: 'summarize', length: 'brief' });
+  });
+
+  it('resolves summarize_standard to summarize action with standard length', () => {
+    const result = resolveMenuAction(CONTEXT_MENU_IDS.SUMMARIZE_STANDARD);
+    expect(result).toEqual({ action: 'summarize', length: 'standard' });
+  });
+
+  it('resolves summarize_detailed to summarize action with detailed length', () => {
+    const result = resolveMenuAction(CONTEXT_MENU_IDS.SUMMARIZE_DETAILED);
+    expect(result).toEqual({ action: 'summarize', length: 'detailed' });
+  });
+
   it('returns null for the parent translate menu item', () => {
     const result = resolveMenuAction(CONTEXT_MENU_IDS.TRANSLATE_PARENT);
     expect(result).toBeNull();
@@ -198,7 +213,7 @@ describe('registerContextMenus', () => {
     expect(keepItem?.checked).toBe(false);
   });
 
-  it('creates three separators under ct_root', async () => {
+  it('creates four separators under ct_root', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const chromeMock = (globalThis as any).chrome;
     await registerContextMenus();
@@ -207,6 +222,20 @@ describe('registerContextMenus', () => {
     const separators = createCalls.filter(
       (c) => c.type === 'separator' && c.parentId === CONTEXT_MENU_IDS.CT_ROOT,
     );
-    expect(separators.length).toBe(3);
+    expect(separators.length).toBe(4);
+  });
+
+  it('creates summarize_brief, summarize_standard, summarize_detailed as children of summarize_parent', async () => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const chromeMock = (globalThis as any).chrome;
+    await registerContextMenus();
+    const createCalls: Array<{ id: string; parentId?: string }> =
+      chromeMock.contextMenus.create.mock.calls.map((c: [unknown]) => c[0]);
+    const childIds = createCalls
+      .filter((c) => c.parentId === CONTEXT_MENU_IDS.SUMMARIZE_PARENT)
+      .map((c) => c.id);
+    expect(childIds).toContain(CONTEXT_MENU_IDS.SUMMARIZE_BRIEF);
+    expect(childIds).toContain(CONTEXT_MENU_IDS.SUMMARIZE_STANDARD);
+    expect(childIds).toContain(CONTEXT_MENU_IDS.SUMMARIZE_DETAILED);
   });
 });

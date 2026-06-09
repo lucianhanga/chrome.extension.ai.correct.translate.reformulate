@@ -1,7 +1,7 @@
 // src/background/context-menu.ts
 // Context menu registration and menu item ID to action mapping.
 
-import type { SupportedLanguage, ActionType, ReformulateTone } from '../shared/types.ts';
+import type { SupportedLanguage, ActionType, ReformulateTone, SummarizeLength } from '../shared/types.ts';
 import { CONTEXT_MENU_IDS } from '../shared/constants.ts';
 import { getSettings } from '../shared/storage.ts';
 
@@ -133,6 +133,43 @@ export async function registerContextMenus(): Promise<void> {
     contexts: ['selection'],
   });
 
+  // Summarize submenu
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_IDS.SUMMARIZE_PARENT,
+    parentId: CONTEXT_MENU_IDS.CT_ROOT,
+    title: 'Summarize',
+    contexts: ['selection'],
+  });
+
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_IDS.SUMMARIZE_BRIEF,
+    parentId: CONTEXT_MENU_IDS.SUMMARIZE_PARENT,
+    title: 'Brief',
+    contexts: ['selection'],
+  });
+
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_IDS.SUMMARIZE_STANDARD,
+    parentId: CONTEXT_MENU_IDS.SUMMARIZE_PARENT,
+    title: 'Standard',
+    contexts: ['selection'],
+  });
+
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_IDS.SUMMARIZE_DETAILED,
+    parentId: CONTEXT_MENU_IDS.SUMMARIZE_PARENT,
+    title: 'Detailed',
+    contexts: ['selection'],
+  });
+
+  // Separator 4
+  chrome.contextMenus.create({
+    id: CONTEXT_MENU_IDS.SEPARATOR_4,
+    parentId: CONTEXT_MENU_IDS.CT_ROOT,
+    type: 'separator',
+    contexts: ['selection'],
+  });
+
   // Keep Terminology checkbox
   chrome.contextMenus.create({
     id: CONTEXT_MENU_IDS.KEEP_TERMINOLOGY,
@@ -152,6 +189,7 @@ export interface ResolvedMenuAction {
   action: ActionType;
   targetLanguage?: SupportedLanguage;
   tone?: ReformulateTone;
+  length?: SummarizeLength;
 }
 
 /**
@@ -179,6 +217,12 @@ export function resolveMenuAction(menuItemId: string): ResolvedMenuAction | null
       return { action: 'reformulate', tone: 'friendly' };
     case CONTEXT_MENU_IDS.REFORMULATE_NATURAL:
       return { action: 'reformulate', tone: 'natural' };
+    case CONTEXT_MENU_IDS.SUMMARIZE_BRIEF:
+      return { action: 'summarize', length: 'brief' };
+    case CONTEXT_MENU_IDS.SUMMARIZE_STANDARD:
+      return { action: 'summarize', length: 'standard' };
+    case CONTEXT_MENU_IDS.SUMMARIZE_DETAILED:
+      return { action: 'summarize', length: 'detailed' };
     // Parent items, separators, and checkbox handled elsewhere -- return null.
     default:
       return null;

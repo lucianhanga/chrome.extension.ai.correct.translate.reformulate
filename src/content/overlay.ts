@@ -2,8 +2,8 @@
 // Shadow DOM overlay for loading, result, and error states.
 // Only one overlay exists at a time -- creating a new one removes any existing one.
 
-import type { ActionType, ErrorCode, ReformulateTone } from '../shared/types.ts';
-import { COLORS, REFORMULATE_TONE_LABELS } from '../shared/constants.ts';
+import type { ActionType, ErrorCode, ReformulateTone, SummarizeLength } from '../shared/types.ts';
+import { COLORS, REFORMULATE_TONE_LABELS, SUMMARIZE_LENGTH_LABELS } from '../shared/constants.ts';
 import { ERROR_COLORS } from '../shared/errors.ts';
 
 // ============================================================
@@ -19,6 +19,8 @@ export interface OverlayResultData {
   targetLanguage?: string;
   /** Reformulate tone, present only when action is 'reformulate'. */
   tone?: ReformulateTone;
+  /** Summary length, present only when action is 'summarize'. */
+  length?: SummarizeLength;
   /** Whether the selection can be edited in place (Replace/Append apply). */
   editable: boolean;
   /** Model identifier reported by the LLM response. */
@@ -72,6 +74,8 @@ export function showLoading(
     verb = 'Correcting';
   } else if (action === 'reformulate') {
     verb = 'Reformulating';
+  } else if (action === 'summarize') {
+    verb = 'Summarizing';
   } else {
     verb = 'Translating';
   }
@@ -193,6 +197,8 @@ function renderResult(
     resultLabel.textContent = 'Corrected';
   } else if (data.action === 'reformulate') {
     resultLabel.textContent = 'Reformulated';
+  } else if (data.action === 'summarize') {
+    resultLabel.textContent = 'Summary';
   } else {
     resultLabel.textContent = 'Translation';
   }
@@ -460,6 +466,13 @@ function buildResultTitle(data: OverlayResultData): string {
       return `Reformulated (${REFORMULATE_TONE_LABELS[data.tone]})`;
     }
     return 'Reformulation';
+  }
+  if (data.action === 'summarize') {
+    // 'standard' gets a generic title; brief/detailed get the label.
+    if (data.length && data.length !== 'standard') {
+      return `Summary (${SUMMARIZE_LENGTH_LABELS[data.length]})`;
+    }
+    return 'Summary';
   }
   if (data.targetLanguage) return `Translation to ${data.targetLanguage}`;
   return 'Translation';

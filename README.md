@@ -6,9 +6,9 @@ LLM by default** (fully private, nothing leaves your machine) or, opt-in,
 against **OpenAI**.
 
 [![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
-![tests](https://img.shields.io/badge/tests-300%20unit%20%7C%20120%20e2e-22c55e)
+![tests](https://img.shields.io/badge/tests-318%20unit%20%7C%20127%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
-![version](https://img.shields.io/badge/version-1.5.1-1e3a5f)
+![version](https://img.shields.io/badge/version-1.6.0-1e3a5f)
 [![release](https://img.shields.io/github/v/release/lucianhanga/chrome.extension.ai.correct.translate.reformulate)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/releases/latest)
 
 > The **CI** badge reflects the type-check, lint, unit-test and build workflow
@@ -17,7 +17,7 @@ against **OpenAI**.
 
 ## What it does
 
-The extension acts on text you select on any page. It exposes three actions:
+The extension acts on text you select on any page. It exposes four actions:
 
 - **Correct** -- fixes grammar and spelling.
 - **Translate** -- translates between English, German, Romanian, and Spanish.
@@ -25,6 +25,8 @@ The extension acts on text you select on any page. It exposes three actions:
 - **Reformulate** -- rewrites the text in one of four tones: Keep tone,
   Professional, Friendly, or Natural. A persistent **Keep terminology** toggle
   tells the model to leave domain terms unchanged.
+- **Summarize** -- produces a short summary at one of three lengths: Brief,
+  Standard, or Detailed. The summary stays in the input language.
 
 Every result is **copied to the clipboard automatically** and shows a metadata
 line with the model name, token count, and elapsed time. When the selection is
@@ -33,10 +35,11 @@ and **Append**.
 
 ## Features
 
-- Three text actions: Correct, Translate (EN / DE / RO / ES), Reformulate (4 tones).
-- Language-aware: Correct and Reformulate keep the input/detected language (text
-  is never silently translated); Romanian translations are output without
-  diacritics (plain ASCII).
+- Four text actions: Correct, Translate (EN / DE / RO / ES), Reformulate (4 tones),
+  Summarize (3 lengths).
+- Language-aware: Correct, Reformulate, and Summarize keep the input/detected
+  language (text is never silently translated); Romanian translations are output
+  without diacritics (plain ASCII).
 - Dual provider: local **Ollama** (default, private) or **OpenAI** (opt-in).
 - Two entry points: the right-click **context menu** and the toolbar **popup**.
 - In-place **Replace** / **Append** for editable selections; clipboard copy for

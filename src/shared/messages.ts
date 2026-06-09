@@ -1,14 +1,14 @@
 // src/shared/messages.ts
 // Typed message interfaces and type guards for all extension message passing.
 
-import type { SupportedLanguage, ActionType, ErrorCode, ExtensionSettings, OpenAIModel, ReformulateTone } from './types.ts';
-import { AVAILABLE_OPENAI_MODELS, REFORMULATE_TONES } from './constants.ts';
+import type { SupportedLanguage, ActionType, ErrorCode, ExtensionSettings, OpenAIModel, ReformulateTone, SummarizeLength } from './types.ts';
+import { AVAILABLE_OPENAI_MODELS, REFORMULATE_TONES, SUMMARIZE_LENGTHS } from './constants.ts';
 
 // ============================================================
 // Re-exports so consumers only need to import from messages.ts
 // ============================================================
 
-export type { SupportedLanguage, ActionType, ErrorCode, ExtensionSettings, ReformulateTone };
+export type { SupportedLanguage, ActionType, ErrorCode, ExtensionSettings, ReformulateTone, SummarizeLength };
 
 // ============================================================
 // Messages: Popup -> Service Worker
@@ -61,6 +61,14 @@ export interface ReformulateRequest {
   };
 }
 
+export interface SummarizeRequest {
+  type: 'SUMMARIZE';
+  payload: {
+    text: string;
+    length: SummarizeLength;
+  };
+}
+
 export type PopupToServiceWorkerMessage =
   | CorrectGrammarRequest
   | TranslateRequest
@@ -68,7 +76,8 @@ export type PopupToServiceWorkerMessage =
   | GetSettingsRequest
   | SaveSettingsRequest
   | ValidateOpenAIKeyRequest
-  | ReformulateRequest;
+  | ReformulateRequest
+  | SummarizeRequest;
 
 // ============================================================
 // Messages: Service Worker -> Content Script
@@ -137,13 +146,24 @@ export interface StartReformulateMessage {
   };
 }
 
+export interface StartSummarizeMessage {
+  type: 'START_SUMMARIZE';
+  payload: {
+    originalText: string;
+    length: SummarizeLength;
+    /** Active LLM provider, used to display "Processing with <provider>..." */
+    provider: import('./types.ts').LLMProvider;
+  };
+}
+
 export type ServiceWorkerToContentScriptMessage =
   | ShowLoadingMessage
   | ShowResultMessage
   | ShowErrorMessage
   | DismissOverlayMessage
   | StartTranslateMessage
-  | StartReformulateMessage;
+  | StartReformulateMessage
+  | StartSummarizeMessage;
 
 // ============================================================
 // Responses: Service Worker -> Popup
@@ -215,6 +235,8 @@ const VALID_TYPES: ReadonlySet<string> = new Set([
   'DISMISS_OVERLAY',
   'START_TRANSLATE',
   'START_REFORMULATE',
+  'SUMMARIZE',
+  'START_SUMMARIZE',
 ]);
 
 const SUPPORTED_LANGUAGES_SET: ReadonlySet<string> = new Set([
@@ -318,5 +340,27 @@ export function isReformulateRequest(msg: unknown): msg is ReformulateRequest {
     typeof payload['text'] === 'string' &&
     isReformulateTone(payload['tone']) &&
     typeof payload['keepTerminology'] === 'boolean'
+  );
+}
+
+/**
+ * Type guard: checks that value is one of the three SummarizeLength values.
+ */
+export function isSummarizeLength(v: unknown): v is SummarizeLength {
+  return typeof v === 'string' && (SUMMARIZE_LENGTHS as readonly string[]).includes(v);
+}
+
+/**
+ * Type guard: validates a SUMMARIZE message from the popup.
+ */
+export function isSummarizeRequest(msg: unknown): msg is SummarizeRequest {
+  if (typeof msg !== 'object' || msg === null) return false;
+  const m = msg as Record<string, unknown>;
+  if (m['type'] !== 'SUMMARIZE') return false;
+  const payload = m['payload'] as Record<string, unknown> | undefined;
+  if (typeof payload !== 'object' || payload === null) return false;
+  return (
+    typeof payload['text'] === 'string' &&
+    isSummarizeLength(payload['length'])
   );
 }

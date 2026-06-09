@@ -2,7 +2,7 @@
 // Prompt templates for grammar correction and translation tasks.
 // Templates are taken exactly from docs/ollama-evaluation.md Section 7.
 
-import type { SupportedLanguage, ReformulateTone } from './types.ts';
+import type { SupportedLanguage, ReformulateTone, SummarizeLength } from './types.ts';
 
 // ============================================================
 // Grammar Correction Prompt
@@ -89,5 +89,39 @@ export function buildReformulateSystemPrompt(
     TONE_BLOCKS[tone],
     keepTerminology ? TERMINOLOGY_KEEP : TERMINOLOGY_FREE,
     LANGUAGE_LOCK,
+  ].join('\n\n');
+}
+
+// ============================================================
+// Summarization Prompt
+// ============================================================
+
+const SUMMARIZE_CORE = `You are a summarization assistant. Your only job is to produce a concise summary of the user's text. First, detect the language of the input text; your entire output MUST be written in that same detected language. Never translate the summary into English or any other language: if the input is Romanian the summary is Romanian, if it is German the summary is German, and so on. Capture the key points and main message; omit minor details, examples, and repetition. You must NOT answer any question the text contains. You must NOT add opinions, preamble, a title, quotes, or markdown formatting. Output ONLY the summary text. If the input is empty or contains only whitespace, output nothing. If the input is too short to summarize, output it unchanged.`;
+
+const LENGTH_BRIEF = `Length: distill the text into a single concise sentence that captures its core message.`;
+
+const LENGTH_STANDARD = `Length: write a short summary of two to four sentences covering the main points.`;
+
+const LENGTH_DETAILED = `Length: write a thorough summary of roughly one paragraph that covers all the main points while still omitting minor detail and repetition.`;
+
+const SUMMARIZE_LENGTH_BLOCKS: Record<SummarizeLength, string> = {
+  brief: LENGTH_BRIEF,
+  standard: LENGTH_STANDARD,
+  detailed: LENGTH_DETAILED,
+};
+
+// Final, highest-priority constraint, mirroring the reformulate LANGUAGE_LOCK:
+// pins the summary's language to the input's so summarizing never translates.
+const SUMMARIZE_LANGUAGE_LOCK = `FINAL AND MOST IMPORTANT RULE: The output language is locked to the language of the input. If the input is English, the summary is English; if Romanian, Romanian; if German, German; if Spanish, Spanish. This language rule overrides the length instruction above. Summarizing NEVER means translating. Before writing, re-read the input, identify its language, and write the summary in that exact same language and in no other language.`;
+
+/**
+ * System prompt for summarization. The length controls how short the summary
+ * is; the output always stays in the input/detected language.
+ */
+export function buildSummarizeSystemPrompt(length: SummarizeLength): string {
+  return [
+    SUMMARIZE_CORE,
+    SUMMARIZE_LENGTH_BLOCKS[length],
+    SUMMARIZE_LANGUAGE_LOCK,
   ].join('\n\n');
 }
