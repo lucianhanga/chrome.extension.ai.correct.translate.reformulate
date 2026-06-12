@@ -54,6 +54,8 @@ let currentShadowRoot: ShadowRoot | null = null;
 let keydownHandler: ((e: KeyboardEvent) => void) | null = null;
 // The action the Enter key triggers in the current overlay state, if any.
 let primaryKeyAction: (() => void) | null = null;
+// The page element that had focus before the overlay opened, restored on close.
+let previouslyFocused: HTMLElement | null = null;
 
 // ============================================================
 // Public API
@@ -98,8 +100,6 @@ export function showError(data: OverlayErrorData): void {
   const root = currentShadowRoot ?? createOrReplaceOverlay();
   renderError(root, data);
   positionOverlay(currentHostElement!, position);
-  removeKeyboardHandler();
-  primaryKeyAction = null;
 }
 
 /** Remove the overlay from the DOM entirely. */
@@ -113,6 +113,14 @@ export function dismissOverlay(): void {
 
 function createOrReplaceOverlay(): ShadowRoot {
   cleanup();
+
+  // Remember what had focus on the page so it can be restored when the overlay
+  // closes (cleanup() above has already cleared any prior value).
+  const active = document.activeElement as HTMLElement | null;
+  previouslyFocused =
+    active && active !== document.body && active !== document.documentElement
+      ? active
+      : null;
 
   const host = document.createElement('div');
   host.setAttribute('data-ct-overlay-host', '');
@@ -138,6 +146,13 @@ function cleanup(): void {
     currentHostElement = null;
   }
   currentShadowRoot = null;
+  // Return focus to wherever it was before the overlay opened (e.g. the
+  // editable field the user selected text in), so keyboard users are not
+  // stranded once the dialog is gone.
+  if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
+    previouslyFocused.focus();
+  }
+  previouslyFocused = null;
 }
 
 // ============================================================
@@ -145,7 +160,6 @@ function cleanup(): void {
 // ============================================================
 
 function renderLoading(root: ShadowRoot, title: string, subtitle?: string): void {
-  removeKeyboardHandler();
   primaryKeyAction = null;
 
   const overlay = buildOverlayShell(root, title);
@@ -153,6 +167,9 @@ function renderLoading(root: ShadowRoot, title: string, subtitle?: string): void
 
   const loadingDiv = document.createElement('div');
   loadingDiv.className = 'ct-overlay-loading';
+  // Announce the loading state politely to assistive technology.
+  loadingDiv.setAttribute('role', 'status');
+  loadingDiv.setAttribute('aria-live', 'polite');
 
   const spinner = document.createElement('div');
   spinner.className = 'ct-spinner';
@@ -163,6 +180,11 @@ function renderLoading(root: ShadowRoot, title: string, subtitle?: string): void
   loadingDiv.appendChild(spinner);
   loadingDiv.appendChild(label);
   body.appendChild(loadingDiv);
+
+  // A loading overlay is still a dismissable dialog (header close button):
+  // wire Escape + the Tab focus trap, and move focus into the dialog.
+  setupKeyboardHandler();
+  focusFirstFocusable();
 }
 
 function renderResult(
@@ -176,6 +198,9 @@ function renderResult(
 
   const resultDiv = document.createElement('div');
   resultDiv.className = 'ct-overlay-result';
+  // Announce the result politely once it replaces the loading state.
+  resultDiv.setAttribute('role', 'status');
+  resultDiv.setAttribute('aria-live', 'polite');
 
   // Original text (dimmed)
   const originalBlock = document.createElement('div');
@@ -282,23 +307,30 @@ function renderResult(
 }
 
 function renderError(root: ShadowRoot, data: OverlayErrorData): void {
+  primaryKeyAction = null;
   const overlay = buildOverlayShell(root, 'Error');
   const body = overlay.querySelector('.ct-overlay-body') as HTMLElement;
 
   const errorDiv = document.createElement('div');
   errorDiv.className = 'ct-overlay-error';
+  // Errors are announced assertively.
+  errorDiv.setAttribute('role', 'alert');
 
   const iconSpan = document.createElement('span');
   iconSpan.className = 'ct-error-icon';
   iconSpan.textContent = '!';
 
+  // Drive both the icon background and the message colour from the error's
+  // severity, so a red (failure) error actually renders red rather than the
+  // CSS-default yellow.
   const color = ERROR_COLORS[data.errorCode];
-  if (color === COLORS.FAILURE) {
-    iconSpan.style.background = COLORS.FAILURE;
-  }
+  iconSpan.style.background = color;
 
   const msgSpan = document.createElement('span');
   msgSpan.className = 'ct-error-message';
+  if (color === COLORS.FAILURE) {
+    msgSpan.classList.add('ct-error-message--red');
+  }
   msgSpan.textContent = data.errorMessage;
 
   errorDiv.appendChild(iconSpan);
@@ -317,11 +349,17 @@ function renderError(root: ShadowRoot, data: OverlayErrorData): void {
 
   actionsDiv.appendChild(dismissBtn);
   overlay.appendChild(actionsDiv);
+
+  // Escape dismisses; Tab is trapped within the dialog; focus moves to Dismiss.
+  setupKeyboardHandler();
+  dismissBtn.focus();
 }
 
 // ============================================================
 // Shell Builder
 // ============================================================
+
+const OVERLAY_TITLE_ID = 'ct-overlay-title';
 
 function buildOverlayShell(root: ShadowRoot, title: string): HTMLElement {
   const existing = root.querySelector('.ct-overlay');
@@ -329,12 +367,19 @@ function buildOverlayShell(root: ShadowRoot, title: string): HTMLElement {
 
   const overlay = document.createElement('div');
   overlay.className = 'ct-overlay';
+  // Expose the overlay as a modal dialog to assistive technology. Only one
+  // overlay exists at a time, so a static title id within this (closed) shadow
+  // root is safe for aria-labelledby.
+  overlay.setAttribute('role', 'dialog');
+  overlay.setAttribute('aria-modal', 'true');
+  overlay.setAttribute('aria-labelledby', OVERLAY_TITLE_ID);
 
   const header = document.createElement('div');
   header.className = 'ct-overlay-header';
 
   const titleSpan = document.createElement('span');
   titleSpan.className = 'ct-overlay-title';
+  titleSpan.id = OVERLAY_TITLE_ID;
   titleSpan.textContent = title;
 
   const closeBtn = document.createElement('button');
@@ -420,14 +465,16 @@ function positionOverlay(host: HTMLElement, pos: Position): void {
 // Keyboard Handler
 // ============================================================
 
-function setupKeyboardHandler(onEscape: () => void): void {
+function setupKeyboardHandler(onEscape?: () => void): void {
   removeKeyboardHandler();
 
   keydownHandler = (e: KeyboardEvent) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      onEscape();
+      onEscape?.();
       cleanup();
+    } else if (e.key === 'Tab') {
+      trapFocus(e);
     } else if (e.key === 'Enter') {
       const active = document.activeElement;
       // With a closed shadow root, document.activeElement reports the host
@@ -445,6 +492,44 @@ function setupKeyboardHandler(onEscape: () => void): void {
   };
 
   document.addEventListener('keydown', keydownHandler, true);
+}
+
+/** Focusable elements inside the current overlay, in DOM order. */
+function getFocusableElements(): HTMLElement[] {
+  if (!currentShadowRoot) return [];
+  const selector =
+    'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  return Array.from(
+    currentShadowRoot.querySelectorAll<HTMLElement>(selector),
+  ).filter((el) => !el.hasAttribute('disabled'));
+}
+
+/**
+ * Keep Tab focus within the dialog. A closed shadow root still exposes its
+ * focused node via shadowRoot.activeElement, which lets us cycle correctly.
+ */
+function trapFocus(e: KeyboardEvent): void {
+  const focusables = getFocusableElements();
+  if (focusables.length === 0) return;
+  const first = focusables[0]!;
+  const last = focusables[focusables.length - 1]!;
+  const active = currentShadowRoot?.activeElement as HTMLElement | null;
+  const insideOverlay = !!active && focusables.includes(active);
+
+  if (e.shiftKey) {
+    if (!insideOverlay || active === first) {
+      e.preventDefault();
+      last.focus();
+    }
+  } else if (!insideOverlay || active === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
+/** Move focus to the first focusable element in the overlay (e.g. the close button). */
+function focusFirstFocusable(): void {
+  getFocusableElements()[0]?.focus();
 }
 
 function removeKeyboardHandler(): void {
