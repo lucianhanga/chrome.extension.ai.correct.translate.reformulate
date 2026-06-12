@@ -231,6 +231,42 @@ describe('handleMessage', () => {
     expect(response).toMatchObject({ success: true });
   });
 
+  it('accepts SAVE_SETTINGS with a well-formed ollamaEndpoint', async () => {
+    const { handleMessage } = await import('../../src/background/message-handler.ts');
+    const response = await handleMessage({
+      type: 'SAVE_SETTINGS',
+      payload: { settings: { ollamaEndpoint: 'http://localhost:11434' } },
+    });
+
+    expect(response).toMatchObject({ success: true });
+  });
+
+  it('rejects SAVE_SETTINGS with a malformed ollamaEndpoint and does not persist it', async () => {
+    const { saveSettings, getSettings } = await import('../../src/shared/storage.ts');
+    await saveSettings({ ollamaEndpoint: 'http://localhost:11434' });
+
+    const { handleMessage } = await import('../../src/background/message-handler.ts');
+    const response = await handleMessage({
+      type: 'SAVE_SETTINGS',
+      payload: { settings: { ollamaEndpoint: 'not-a-url' } },
+    });
+
+    expect(response).toMatchObject({ success: false, errorCode: 'INVALID_MESSAGE' });
+    // The bad endpoint must not have overwritten the stored value.
+    const settings = await getSettings();
+    expect(settings.ollamaEndpoint).toBe('http://localhost:11434');
+  });
+
+  it('rejects SAVE_SETTINGS with a non-http(s) ollamaEndpoint scheme', async () => {
+    const { handleMessage } = await import('../../src/background/message-handler.ts');
+    const response = await handleMessage({
+      type: 'SAVE_SETTINGS',
+      payload: { settings: { ollamaEndpoint: 'file:///etc/passwd' } },
+    });
+
+    expect(response).toMatchObject({ success: false, errorCode: 'INVALID_MESSAGE' });
+  });
+
   it('returns error response when correctGrammar throws OLLAMA_UNREACHABLE', async () => {
     const { correctGrammar } = await import('../../src/background/tasks.ts');
     vi.mocked(correctGrammar).mockRejectedValue(new Error('Ollama unreachable: connection refused'));

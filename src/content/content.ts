@@ -55,7 +55,11 @@ if (!(window as unknown as Record<string, boolean>)[MARKER]) {
 
 function registerMessageListener(): void {
   chrome.runtime.onMessage.addListener(
-    (message: unknown, _sender: chrome.runtime.MessageSender) => {
+    (message: unknown, sender: chrome.runtime.MessageSender) => {
+      // Trust boundary: only act on messages from this extension's own service
+      // worker (same chrome.runtime.id). A message from any other source must
+      // not be allowed to drive the overlay.
+      if (sender.id !== chrome.runtime.id) return;
       if (!isServiceWorkerMessage(message)) return;
       handleMessage(message);
     },

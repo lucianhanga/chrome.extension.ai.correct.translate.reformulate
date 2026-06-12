@@ -40,6 +40,7 @@ const chromeMock = {
     },
   },
   runtime: {
+    id: 'ct-test-extension-id',
     sendMessage: vi.fn(),
     onMessage: {
       addListener: vi.fn(),
