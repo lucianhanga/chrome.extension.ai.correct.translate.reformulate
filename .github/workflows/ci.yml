@@ -4,7 +4,7 @@
 # verified before merge and the README badge reflects the state of main.
 #
 # The end-to-end suite (pnpm test:e2e) is intentionally NOT run here: it drives
-# a real Chrome against a real local Ollama with the qwen3:14b model (~16 GB),
+# a real Chrome against a real local Ollama with the default gemma3:27b model,
 # which does not fit a GitHub-hosted runner. The e2e suite is run locally --
 # see the "Testing" section of README.md.
 name: CI

@@ -3,7 +3,7 @@
 **Date**: 2026-05-20
 **Author**: chrome-extension-architect
 **Version**: 1.1
-**Status**: IMPLEMENTED (branch `feat/openai-provider`)
+**Status**: IMPLEMENTED -- reflects extension v1.7.0 / `main` as of 2026-06-12
 
 ---
 
@@ -78,6 +78,31 @@ Correct/Translate pair -- read it as applying to Reformulate equally.
 
 ---
 
+## Document Revision Note (v1.3)
+
+Version 1.3 records the changes shipped through extension **v1.7.0** on `main`:
+
+- **Summarize action.** A fourth text action alongside Correct, Translate, and
+  Reformulate, in both the context menu and the popup, with three lengths
+  (`brief`, `standard`, `detailed`) and a persistent last-used length
+  (`defaultSummarizeLength`, default `standard`). See the `SummarizeLength` type,
+  the `SUMMARIZE` / `START_SUMMARIZE` messages, and the `summarize_*` context-menu
+  IDs (`summarize_brief`, `summarize_standard`, `summarize_detailed`). The flow
+  mirrors Reformulate: the service worker hands off via `START_SUMMARIZE` and the
+  content script runs the summarize-and-show-result flow. Where prose below names
+  only the Correct/Translate/Reformulate set, read it as applying to Summarize
+  equally.
+- **Two more languages.** `SupportedLanguage` now includes `Spanish` and
+  `Italian` in addition to English, German, and Romanian (`SUPPORTED_LANGUAGES`,
+  `LANGUAGE_FLAGS`), exposed as `translate_es` / `translate_it` context-menu
+  items.
+- **Shipped Ollama default is `gemma3:27b`** (`DEFAULT_MODEL`); `qwen3:14b` is the
+  lighter `FALLBACK_MODEL`. Any pulled model remains selectable in the popup.
+  (Historical and evaluation references to `qwen3:14b` below describe the
+  evaluation, not the current default.)
+
+---
+
 ## 1. Architecture Overview
 
 ### 1.1 Goals
@@ -102,7 +127,7 @@ Correct/Translate pair -- read it as applying to Reformulate equally.
 
 - Ollama runs locally on `http://localhost:11434`
 - User's machine: Apple M4 Pro, 48 GB unified memory
-- Model `qwen3.6:35b-a3b` is pulled and available
+- Model `gemma3:27b` (the shipped default) is pulled and available
 - Only English, German, Romanian, Spanish, and Italian are supported
 - The user understands that LLM inference takes 5-40 seconds depending on model load state
 
@@ -138,7 +163,7 @@ graph TB
 
     subgraph Local["Local Machine"]
         Ollama["Ollama Server<br/>localhost:11434"]
-        OllamaModel["qwen3:14b /<br/>qwen3.6:35b-a3b"]
+        OllamaModel["gemma3:27b /<br/>qwen3:14b"]
     end
 
     subgraph Cloud["OpenAI Platform"]
@@ -281,7 +306,7 @@ This is the manifest as shipped on the `feat/openai-provider` branch
 {
   "manifest_version": 3,
   "name": "Correct & Translate",
-  "version": "1.0.0",
+  "version": "1.7.0",
   "description": "Grammar correction and translation powered by local Ollama LLM.",
 
   "permissions": [
@@ -489,7 +514,7 @@ sequenceDiagram
     SW->>CS: Send SHOW_LOADING message
     CS->>CS: Capture selection target for later Replace/Append
     CS->>OV: Show loading overlay near selection
-    SW->>LLM: POST /v1/chat/completions (GRAMMAR_CORRECT prompt)
+    SW->>LLM: POST (Ollama /api/chat, OpenAI /v1/chat/completions) (GRAMMAR_CORRECT prompt)
     Note over LLM: 5-40 second inference
     LLM-->>SW: Response with corrected text
     SW->>CS: Send SHOW_RESULT message (original, corrected)
@@ -533,7 +558,7 @@ sequenceDiagram
     CS->>CS: Capture selection target for later Replace/Append
     CS->>OV: Show loading overlay
     CS->>SW: TRANSLATE message (text, targetLanguage)
-    SW->>LLM: POST /v1/chat/completions (TRANSLATE prompt, target=Romanian)
+    SW->>LLM: POST (Ollama /api/chat, OpenAI /v1/chat/completions) (TRANSLATE prompt, target=Romanian)
     LLM-->>SW: Translated text
     SW-->>CS: Response (success, translated text)
     CS->>CS: Auto-copy translation to clipboard
@@ -553,7 +578,7 @@ sequenceDiagram
     Popup->>Popup: Validate input (non-empty, within limit)
     Popup->>SW: CORRECT_GRAMMAR message (text)
     SW->>SW: getActiveClient(settings) picks the provider
-    SW->>LLM: POST /v1/chat/completions
+    SW->>LLM: POST (Ollama /api/chat, OpenAI /v1/chat/completions)
     LLM-->>SW: Corrected text
     SW-->>Popup: Response (success, corrected text)
     Popup->>Popup: Display result inline
@@ -602,9 +627,9 @@ OpenAI provider so the popup can validate a typed key without saving it.
 // Language and Action Types
 // ============================================================
 
-export type SupportedLanguage = 'English' | 'German' | 'Romanian';
-export type LanguageCode = 'en' | 'de' | 'ro';
-export type ActionType = 'correct' | 'translate';
+export type SupportedLanguage = 'English' | 'German' | 'Romanian' | 'Spanish' | 'Italian';
+export type LanguageCode = 'en' | 'de' | 'ro' | 'es' | 'it';
+export type ActionType = 'correct' | 'translate' | 'reformulate' | 'summarize';
 
 // ============================================================
 // Messages: Popup -> Service Worker
@@ -781,7 +806,7 @@ export function isTranslateRequest(msg: unknown): msg is TranslateRequest {
     m.type === 'TRANSLATE' &&
     typeof m.payload?.text === 'string' &&
     typeof m.payload?.targetLanguage === 'string' &&
-    ['English', 'German', 'Romanian'].includes(m.payload.targetLanguage)
+    ['English', 'German', 'Romanian', 'Spanish', 'Italian'].includes(m.payload.targetLanguage)
   );
 }
 ```
@@ -795,7 +820,7 @@ All messages arriving at the service worker must be validated before processing:
 | Message structure | Must have a `type` field that matches a known type | Return `ErrorResponse` with `INVALID_MESSAGE` |
 | Text payload | Must be a non-empty string after trimming | Return `ErrorResponse` with `EMPTY_INPUT` |
 | Text length | Must be at most 10,000 characters | Return `ErrorResponse` with `INPUT_TOO_LONG` |
-| Language values | Must be one of `'English'`, `'German'`, `'Romanian'`, or `null` | Return `ErrorResponse` with `INVALID_MESSAGE` |
+| Language values | Must be one of `'English'`, `'German'`, `'Romanian'`, `'Spanish'`, `'Italian'`, or `null` | Return `ErrorResponse` with `INVALID_MESSAGE` |
 | Settings payload | Must conform to `Partial<ExtensionSettings>` shape | Return `ErrorResponse` with `INVALID_MESSAGE` |
 | Sender origin | For content script messages, verify `sender.tab` is present | Ignore message |
 
@@ -815,12 +840,15 @@ export interface StorageSchema {
 // From src/shared/constants.ts
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   ollamaEndpoint: 'http://localhost:11434',
-  model: 'qwen3:14b',
+  model: 'gemma3:27b',
   defaultTargetLanguage: 'English',
   provider: 'ollama',                  // default provider
   openaiModel: 'gpt-5-nano',
   openaiApiKey: '',                    // empty = not configured
   openaiConsentAcknowledged: false,    // one-time egress consent flag
+  keepTerminology: true,               // reformulate: preserve technical terms
+  defaultReformulateTone: 'keep',      // reformulate default tone
+  defaultSummarizeLength: 'standard',  // summarize default length
 };
 ```
 
@@ -836,7 +864,7 @@ merge (not a replace) so partial updates are safe.
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
 | `settings.ollamaEndpoint` | `string` | `"http://localhost:11434"` | Ollama API base URL |
-| `settings.model` | `string` | `"qwen3:14b"` | Active Ollama model name |
+| `settings.model` | `string` | `"gemma3:27b"` | Active Ollama model name |
 | `settings.defaultTargetLanguage` | `SupportedLanguage` | `"English"` | Default target for translations |
 | `settings.provider` | `'ollama' \| 'openai'` | `"ollama"` | Active LLM provider |
 | `settings.openaiModel` | `'gpt-5.4-nano' \| 'gpt-5-nano'` | `"gpt-5-nano"` | Active OpenAI model |
@@ -1077,7 +1105,7 @@ The Replace button receives focus when the result overlay opens.
 | Error Code | Condition | User-Facing Message | Color |
 |------------|-----------|---------------------|-------|
 | `OLLAMA_UNREACHABLE` | Ollama server not running or network error | "Cannot reach Ollama. Make sure it is running: `ollama serve`" | Red `#ef4444` |
-| `MODEL_NOT_FOUND` | HTTP 404 from Ollama -- model not pulled | "Model not found. Pull it first: `ollama pull qwen3:14b`" | Red `#ef4444` |
+| `MODEL_NOT_FOUND` | HTTP 404 from Ollama -- model not pulled | "Model not found. Pull it first: `ollama pull gemma3:27b`" | Red `#ef4444` |
 | `REQUEST_TIMEOUT` | Provider did not respond within 60 seconds | "Request timed out. The model may be loading. Try again, or switch to a faster model (qwen3:14b) in settings." | Yellow `#eab308` |
 | `EMPTY_INPUT` | User submitted empty or whitespace-only text | "No text provided. Select some text first." | Yellow `#eab308` |
 | `INPUT_TOO_LONG` | Input exceeds 10,000 characters | "Text is too long (max 10,000 characters). Select a shorter passage." | Yellow `#eab308` |
@@ -1092,8 +1120,8 @@ The Replace button receives focus when the result overlay opens.
 The four `OPENAI_*` codes are produced by `openai-client.ts` as structural
 `LLMError` instances; `classifyError` reads their `code` directly. The Ollama
 client produces plain `Error` objects that `classifyError` maps by message
-string. Note that `MODEL_NOT_FOUND`'s message hard-codes `qwen3:14b` regardless
-of the configured model.
+string. `MODEL_NOT_FOUND`'s message names the configured model (`ollama pull
+${model}`); the shipped default is `gemma3:27b`.
 
 ### 10.2 Error Flow
 
@@ -1168,7 +1196,7 @@ export function validateTextInput(text: unknown): ValidationResult {
 | **T2: Message spoofing from web page** | A webpage could try to send messages to the extension via `chrome.runtime.sendMessage` (externally connectable) | Low | The extension does not declare `externally_connectable` in the manifest. Web pages cannot send messages to the extension. Content script messages are validated by checking `sender.tab`. |
 | **T3: Ollama response injection** | Ollama could return text containing HTML/script that gets injected into the page | Medium | All Ollama responses are inserted into the overlay via `textContent` (not `innerHTML`). When replacing text in editable fields, the result is set as plain text value, not HTML. |
 | **T4: Content script style leakage** | Overlay CSS could break the host page, or host page CSS could break the overlay | Low | Shadow DOM isolates all overlay styles. Overlay uses a `ct-` prefix for all CSS classes as an additional safeguard. |
-| **T5: Localhost SSRF** | The extension calls `localhost:11434`. If the host permission were broader, it could be used to probe other local services | Low | Host permission is restricted to exactly `http://localhost:11434/*`. No other local endpoints are accessible. |
+| **T5: Localhost SSRF** | The extension calls `localhost:11434`. The `<all_urls>` host permission is broad, so the egress restriction does not come from the host permission | Low | Egress is locked by the `connect-src` CSP to `http://localhost:11434` and `https://api.openai.com` only -- no other endpoint (local or remote) can be reached, regardless of the broad host permission. The service worker is the only component that issues network requests, and the Ollama endpoint string is validated. Narrowing `<all_urls>` is tracked in issue #44. |
 | **T6: Storage tampering** | Another extension or malicious code could modify `chrome.storage.local` | Low | `chrome.storage.local` is per-extension and isolated by Chrome. Only this extension can read/write its own storage. Settings are validated on read. |
 | **T7: Service worker message validation bypass** | Malformed messages could cause crashes or unexpected behavior | Medium | All messages are validated with type guards before processing. Unknown message types are rejected. Payloads are checked for expected shape and value ranges. |
 | **T8: Text replacement in editable fields** | Replacing text in `contenteditable` elements could inject HTML | Medium | Text replacement uses `document.execCommand('insertText')` for `contenteditable` (plain text only) and `.value` assignment for `<textarea>`/`<input>`. Never uses `innerHTML` for replacement. |
@@ -1185,7 +1213,7 @@ export function validateTextInput(text: unknown): ValidationResult {
 
 - `script-src 'self'` -- only scripts from the extension bundle can execute. No inline scripts, no `eval`, no remote scripts.
 - `object-src 'none'` -- no plugins (Flash, Java, etc.)
-- `connect-src 'self' http://localhost:11434 https://api.openai.com` -- network requests only to the extension itself, local Ollama, and the OpenAI API. The CSP and the `host_permissions` list the same two endpoints, so no provider can be reached unless both allow it.
+- `connect-src 'self' http://localhost:11434 https://api.openai.com` -- network requests only to the extension itself, local Ollama, and the OpenAI API. `host_permissions` is the broad `<all_urls>` (needed for content-script injection into cross-origin iframes, not for egress), so this `connect-src` directive is the sole egress lock: no provider or endpoint can be reached unless it is listed here. Narrowing `<all_urls>` is tracked in issue #44.
 
 ### 11.2.1 OpenAI API Key Handling
 
@@ -1229,7 +1257,8 @@ The OpenAI provider introduces the only secret the extension handles. The
 2. Content scripts never call `fetch` or `XMLHttpRequest`.
 3. The popup never calls `fetch` directly -- it communicates through the service worker.
 4. Ollama requests go to the configured endpoint (default `http://localhost:11434`),
-   limited by the `http://localhost:11434/*` host permission.
+   which is the only `http://` origin the `connect-src` CSP permits (egress is
+   locked by the CSP, not by the broad `<all_urls>` host permission).
 5. OpenAI requests go only to `https://api.openai.com`, which is hard-coded as
    `OPENAI_API_BASE` and matched by the `https://api.openai.com/*` host
    permission. The OpenAI endpoint is not user-configurable.
@@ -1246,8 +1275,8 @@ None. The extension does not expose any resources to web pages.
 
 - [x] Manifest V3 used
 - [x] Permissions are minimal and justified (see Section 3.2)
-- [x] Host permissions are minimal (`http://localhost:11434/*` and `https://api.openai.com/*` only)
-- [x] No `<all_urls>`
+- [ ] Host permissions are broad: `host_permissions` is `<all_urls>` (required to inject the content script into cross-origin iframe editors). Compensating controls: egress is locked by the `connect-src` CSP to `localhost:11434` + `api.openai.com`; injection is on-demand and programmatic (only on a context-menu click), with no static `content_scripts`; the overlay uses a closed Shadow DOM. Narrowing `<all_urls>` is tracked in issue #44.
+- [x] `<all_urls>` is used deliberately, with the compensating controls above; egress is not governed by the host permission
 - [x] `activeTab` used instead of broad tab access
 - [x] No remote code loading
 - [x] No `eval`, `new Function`, or unsafe-inline
@@ -1311,7 +1340,7 @@ and storage/settings flows in a real Chrome.
 | **Translation RO->DE** | Select Romanian text, right-click, "Translate to" -> "German" | Overlay shows German translation. |
 | **Popup: Correct** | Open popup, paste text, click "Correct" | Result shown inline in popup; auto-copied with "Copied to clipboard". |
 | **Popup: Translate** | Open popup, paste text, select target language, click "Translate" | Translation shown inline; auto-copied. |
-| **Popup: Settings** | Change model to `qwen3.6:35b-a3b`, close and reopen popup | Setting persists. |
+| **Popup: Settings** | Change model from the default `gemma3:27b` to `qwen3:14b`, close and reopen popup | Setting persists. |
 | **Popup: Status** | With Ollama running, check status indicator | Green dot. |
 | **Popup: Status (Ollama off)** | Stop Ollama, open popup | Red dot with error message. |
 | **Provider switch to OpenAI** | In Settings, select OpenAI provider for the first time | Consent dialog appears; on confirm, OpenAI is selected and the `OpenAI` badge shows. |
@@ -1564,7 +1593,7 @@ graph TD
     F --> OC["OpenAI client.call(systemPrompt, text, {model})"]
     OC --> OAPI["POST https://api.openai.com/v1/chat/completions"]
     P -->|"ollama"| T["tasks.ts: correctGrammar / translateText"]
-    T --> OLAPI["POST http://localhost:11434/v1/chat/completions"]
+    T --> OLAPI["POST http://localhost:11434/api/chat"]
     OAPI --> Resp["{ success: true, result }"]
     OLAPI --> Resp
 ```
@@ -1663,7 +1692,7 @@ The developer agent should test the chosen plugin and fall back if it causes bui
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| `model` | `qwen3:14b` (shipped default, `DEFAULT_MODEL`); `qwen3.6:35b-a3b` also selectable | Good multilingual quality (EN/DE/RO); 14b is the faster default |
+| `model` | `gemma3:27b` (shipped default, `DEFAULT_MODEL`); `qwen3:14b` is the lighter fallback (`FALLBACK_MODEL`), and any pulled model is selectable | Good multilingual quality (EN/DE/RO/ES/IT); `qwen3:14b` is the faster fallback |
 | `temperature` | `0.2` | Low creativity for deterministic correction/translation |
 | `top_p` | `0.8` | Qwen3 recommended default |
 | `top_k` | `20` | Qwen3 recommended default |
@@ -1710,4 +1739,4 @@ No runtime dependencies beyond React. All other packages are dev dependencies.
 
 **End of Architecture Document**
 
-*This document is pending user approval. Development must not begin until approval is granted.*
+*Reflects the extension as shipped at v1.7.0 on `main` as of 2026-06-12.*
