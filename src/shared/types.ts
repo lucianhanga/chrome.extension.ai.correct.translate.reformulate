@@ -5,7 +5,13 @@
 // Language Types
 // ============================================================
 
-export type SupportedLanguage = 'English' | 'German' | 'Romanian' | 'Spanish' | 'Italian';
+export type SupportedLanguage =
+  | 'English'
+  | 'German'
+  | 'Romanian'
+  | 'Romanian (no diacritics)'
+  | 'Spanish'
+  | 'Italian';
 
 export type ActionType = 'correct' | 'translate' | 'reformulate' | 'summarize';
 

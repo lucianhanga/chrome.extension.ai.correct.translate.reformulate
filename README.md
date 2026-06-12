@@ -21,7 +21,8 @@ The extension acts on text you select on any page. It exposes four actions:
 
 - **Correct** -- fixes grammar and spelling.
 - **Translate** -- translates between English, German, Romanian, Spanish, and Italian.
-  Romanian translations are written without diacritics (plain ASCII).
+  Romanian comes in two variants: **Romanian** (correct, with diacritics) and
+  **Romanian (no diacritics)** (plain ASCII, for legacy/ASCII-only systems).
 - **Reformulate** -- rewrites the text in one of four tones: Keep tone,
   Professional, Friendly, or Natural. A persistent **Keep terminology** toggle
   tells the model to leave domain terms unchanged.
@@ -38,8 +39,8 @@ and **Append**.
 - Four text actions: Correct, Translate (EN / DE / RO / ES / IT), Reformulate (4 tones),
   Summarize (3 lengths). The context-menu Translate items show country flags.
 - Language-aware: Correct, Reformulate, and Summarize keep the input/detected
-  language (text is never silently translated); Romanian translations are output
-  without diacritics (plain ASCII).
+  language (text is never silently translated). Translate offers two Romanian
+  targets: with diacritics, and a plain-ASCII "no diacritics" variant.
 - Dual provider: local **Ollama** (default, private) or **OpenAI** (opt-in).
 - Two entry points: the right-click **context menu** and the toolbar **popup**.
 - In-place **Replace** / **Append** for editable selections; clipboard copy for

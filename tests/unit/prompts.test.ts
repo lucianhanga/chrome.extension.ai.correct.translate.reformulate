@@ -68,11 +68,22 @@ describe('buildTranslateSystemPrompt', () => {
     expect(buildTranslateSystemPrompt('Italian')).toContain('Italian');
   });
 
-  it('instructs no-diacritics output only when the target is Romanian', () => {
-    expect(buildTranslateSystemPrompt('Romanian')).toContain('WITHOUT diacritics');
+  it('instructs no-diacritics output only for the Romanian (no diacritics) target', () => {
+    expect(buildTranslateSystemPrompt('Romanian (no diacritics)')).toContain('WITHOUT diacritics');
+    expect(buildTranslateSystemPrompt('Romanian')).not.toContain('WITHOUT diacritics');
     expect(buildTranslateSystemPrompt('English')).not.toContain('WITHOUT diacritics');
     expect(buildTranslateSystemPrompt('German')).not.toContain('WITHOUT diacritics');
     expect(buildTranslateSystemPrompt('Spanish')).not.toContain('WITHOUT diacritics');
+  });
+
+  it('instructs proper diacritics for the plain Romanian target', () => {
+    expect(buildTranslateSystemPrompt('Romanian')).toContain('WITH proper diacritics');
+    expect(buildTranslateSystemPrompt('Romanian (no diacritics)')).not.toContain('WITH proper diacritics');
+  });
+
+  it('both Romanian targets instruct translation into Romanian', () => {
+    expect(buildTranslateSystemPrompt('Romanian')).toContain('Translate the text to Romanian');
+    expect(buildTranslateSystemPrompt('Romanian (no diacritics)')).toContain('Translate the text to Romanian');
   });
 });
 

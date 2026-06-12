@@ -133,7 +133,20 @@ describe('handleMessage', () => {
     );
   });
 
-  it('strips Romanian diacritics from a TRANSLATE-to-Romanian result', async () => {
+  it('strips diacritics for the Romanian (no diacritics) target', async () => {
+    const { translateText } = await import('../../src/background/tasks.ts');
+    vi.mocked(translateText).mockResolvedValue(llmResult('Soarele strălucește astăzi.'));
+
+    const { handleMessage } = await import('../../src/background/message-handler.ts');
+    const response = await handleMessage({
+      type: 'TRANSLATE',
+      payload: { text: 'The sun is shining today.', targetLanguage: 'Romanian (no diacritics)' },
+    });
+
+    expect(response).toMatchObject({ success: true, result: 'Soarele straluceste astazi.' });
+  });
+
+  it('PRESERVES diacritics for the plain Romanian target', async () => {
     const { translateText } = await import('../../src/background/tasks.ts');
     vi.mocked(translateText).mockResolvedValue(llmResult('Soarele strălucește astăzi.'));
 
@@ -143,7 +156,7 @@ describe('handleMessage', () => {
       payload: { text: 'The sun is shining today.', targetLanguage: 'Romanian' },
     });
 
-    expect(response).toMatchObject({ success: true, result: 'Soarele straluceste astazi.' });
+    expect(response).toMatchObject({ success: true, result: 'Soarele strălucește astăzi.' });
   });
 
   it('does NOT strip diacritics when translating to a non-Romanian language', async () => {

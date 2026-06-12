@@ -45,6 +45,7 @@ describe('isSupportedLanguage', () => {
     expect(isSupportedLanguage('English')).toBe(true);
     expect(isSupportedLanguage('German')).toBe(true);
     expect(isSupportedLanguage('Romanian')).toBe(true);
+    expect(isSupportedLanguage('Romanian (no diacritics)')).toBe(true);
     expect(isSupportedLanguage('Spanish')).toBe(true);
     expect(isSupportedLanguage('Italian')).toBe(true);
   });

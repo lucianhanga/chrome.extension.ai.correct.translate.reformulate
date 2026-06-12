@@ -75,6 +75,13 @@ export async function registerContextMenus(): Promise<void> {
   });
 
   chrome.contextMenus.create({
+    id: CONTEXT_MENU_IDS.TRANSLATE_RO_ASCII,
+    parentId: CONTEXT_MENU_IDS.TRANSLATE_PARENT,
+    title: `${LANGUAGE_FLAGS['Romanian (no diacritics)']} ${LANGUAGE_DISPLAY_NAMES['Romanian (no diacritics)']}`,
+    contexts: ['selection'],
+  });
+
+  chrome.contextMenus.create({
     id: CONTEXT_MENU_IDS.TRANSLATE_ES,
     parentId: CONTEXT_MENU_IDS.TRANSLATE_PARENT,
     title: `${LANGUAGE_FLAGS.Spanish} ${LANGUAGE_DISPLAY_NAMES.Spanish}`,
@@ -214,6 +221,8 @@ export function resolveMenuAction(menuItemId: string): ResolvedMenuAction | null
       return { action: 'translate', targetLanguage: 'German' };
     case CONTEXT_MENU_IDS.TRANSLATE_RO:
       return { action: 'translate', targetLanguage: 'Romanian' };
+    case CONTEXT_MENU_IDS.TRANSLATE_RO_ASCII:
+      return { action: 'translate', targetLanguage: 'Romanian (no diacritics)' };
     case CONTEXT_MENU_IDS.TRANSLATE_ES:
       return { action: 'translate', targetLanguage: 'Spanish' };
     case CONTEXT_MENU_IDS.TRANSLATE_IT:

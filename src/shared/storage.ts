@@ -2,7 +2,7 @@
 // Type-safe storage abstraction over chrome.storage.local.
 
 import type { ExtensionSettings } from './types.ts';
-import { DEFAULT_SETTINGS, AVAILABLE_OPENAI_MODELS, DEFAULT_OPENAI_MODEL, REFORMULATE_TONES, SUMMARIZE_LENGTHS } from './constants.ts';
+import { DEFAULT_SETTINGS, AVAILABLE_OPENAI_MODELS, DEFAULT_OPENAI_MODEL, REFORMULATE_TONES, SUMMARIZE_LENGTHS, SUPPORTED_LANGUAGES } from './constants.ts';
 
 // ============================================================
 // Storage Schema
@@ -49,6 +49,11 @@ export async function getSettings(): Promise<ExtensionSettings> {
   // Defense-in-depth: coerce summarize fields to valid values.
   if (!SUMMARIZE_LENGTHS.includes(merged.defaultSummarizeLength)) {
     merged.defaultSummarizeLength = 'standard';
+  }
+  // Defense-in-depth: coerce the target language to a supported value (covers
+  // both Romanian variants and guards against corrupted/hand-edited storage).
+  if (!SUPPORTED_LANGUAGES.includes(merged.defaultTargetLanguage)) {
+    merged.defaultTargetLanguage = DEFAULT_SETTINGS.defaultTargetLanguage;
   }
 
   return merged;

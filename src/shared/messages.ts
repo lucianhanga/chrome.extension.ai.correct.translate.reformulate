@@ -243,6 +243,7 @@ const SUPPORTED_LANGUAGES_SET: ReadonlySet<string> = new Set([
   'English',
   'German',
   'Romanian',
+  'Romanian (no diacritics)',
   'Spanish',
   'Italian',
 ]);

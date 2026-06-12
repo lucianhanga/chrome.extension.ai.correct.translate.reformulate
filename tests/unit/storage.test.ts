@@ -196,6 +196,21 @@ describe('getSettings: reformulate field defaults and coercion', () => {
     expect(settings.keepTerminology).toBe(true);
     expect(settings.defaultReformulateTone).toBe('keep');
   });
+
+  it('preserves the Romanian (no diacritics) target language', async () => {
+    const { getSettings } = await getStorageModule();
+    await seedRawSettings({ ...DEFAULT_SETTINGS, defaultTargetLanguage: 'Romanian (no diacritics)' });
+    const settings = await getSettings();
+    expect(settings.defaultTargetLanguage).toBe('Romanian (no diacritics)');
+  });
+
+  it('coerces an unknown defaultTargetLanguage back to the default', async () => {
+    const { getSettings } = await getStorageModule();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await seedRawSettings({ ...DEFAULT_SETTINGS, defaultTargetLanguage: 'Klingon' as any });
+    const settings = await getSettings();
+    expect(settings.defaultTargetLanguage).toBe(DEFAULT_SETTINGS.defaultTargetLanguage);
+  });
 });
 
 describe('saveSettings', () => {

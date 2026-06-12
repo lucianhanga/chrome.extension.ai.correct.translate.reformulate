@@ -37,6 +37,11 @@ describe('resolveMenuAction', () => {
     expect(result).toEqual({ action: 'translate', targetLanguage: 'Romanian' });
   });
 
+  it('resolves translate_ro_ascii to translate action with Romanian (no diacritics)', () => {
+    const result = resolveMenuAction(CONTEXT_MENU_IDS.TRANSLATE_RO_ASCII);
+    expect(result).toEqual({ action: 'translate', targetLanguage: 'Romanian (no diacritics)' });
+  });
+
   it('resolves translate_es to translate action with Spanish', () => {
     const result = resolveMenuAction(CONTEXT_MENU_IDS.TRANSLATE_ES);
     expect(result).toEqual({ action: 'translate', targetLanguage: 'Spanish' });
@@ -160,6 +165,7 @@ describe('registerContextMenus', () => {
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_EN);
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_DE);
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_RO);
+    expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_RO_ASCII);
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_ES);
     expect(childIds).toContain(CONTEXT_MENU_IDS.TRANSLATE_IT);
   });
@@ -175,6 +181,7 @@ describe('registerContextMenus', () => {
     expect(byId(CONTEXT_MENU_IDS.TRANSLATE_EN)).toBe('🇬🇧 English');
     expect(byId(CONTEXT_MENU_IDS.TRANSLATE_DE)).toBe('🇩🇪 German');
     expect(byId(CONTEXT_MENU_IDS.TRANSLATE_RO)).toBe('🇷🇴 Romanian');
+    expect(byId(CONTEXT_MENU_IDS.TRANSLATE_RO_ASCII)).toBe('🇷🇴 Romanian (no diacritics)');
     expect(byId(CONTEXT_MENU_IDS.TRANSLATE_ES)).toBe('🇪🇸 Spanish');
     expect(byId(CONTEXT_MENU_IDS.TRANSLATE_IT)).toBe('🇮🇹 Italian');
   });
