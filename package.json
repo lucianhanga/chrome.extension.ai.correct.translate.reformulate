@@ -1,10 +1,6 @@
 {
   "name": "correct-and-translate",
-<<<<<<< HEAD
   "version": "1.8.0",
-=======
-  "version": "1.8.0",
->>>>>>> 2970768 (feat: add "Romanian (no diacritics)" as a separate translate target)
   "description": "Grammar correction and translation powered by local Ollama LLM.",
   "scripts": {
     "build": "vite build && CONTENT_OUT_DIR=dist vite build --config vite.config.content.ts",
