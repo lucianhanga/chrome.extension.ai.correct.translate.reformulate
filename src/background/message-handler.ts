@@ -125,11 +125,12 @@ export async function handleMessage(message: unknown): Promise<ServiceWorkerResp
         );
       }
 
-      // Romanian translations are delivered without diacritics (plain ASCII).
-      // This is deterministic post-processing so it holds regardless of model
-      // or provider; correction/reformulation are unaffected.
+      // Only the "Romanian (no diacritics)" target is delivered as plain ASCII.
+      // Plain "Romanian" keeps its diacritics. This deterministic
+      // post-processing holds regardless of model or provider;
+      // correction/reformulation are unaffected.
       const translatedText =
-        message.payload.targetLanguage === 'Romanian'
+        message.payload.targetLanguage === 'Romanian (no diacritics)'
           ? stripRomanianDiacritics(llmResult.text)
           : llmResult.text;
 

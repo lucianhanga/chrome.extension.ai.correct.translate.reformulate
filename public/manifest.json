@@ -1,7 +1,11 @@
 {
   "manifest_version": 3,
   "name": "Correct & Translate",
-  "version": "1.7.1",
+<<<<<<< HEAD
+  "version": "1.8.0",
+=======
+  "version": "1.8.0",
+>>>>>>> 2970768 (feat: add "Romanian (no diacritics)" as a separate translate target)
   "description": "Grammar correction and translation powered by local Ollama LLM.",
 
   "permissions": [

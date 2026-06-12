@@ -11,6 +11,7 @@ export const SUPPORTED_LANGUAGES: readonly SupportedLanguage[] = [
   'English',
   'German',
   'Romanian',
+  'Romanian (no diacritics)',
   'Spanish',
   'Italian',
 ] as const;
@@ -19,16 +20,19 @@ export const LANGUAGE_DISPLAY_NAMES: Record<SupportedLanguage, string> = {
   English: 'English',
   German: 'German',
   Romanian: 'Romanian',
+  'Romanian (no diacritics)': 'Romanian (no diacritics)',
   Spanish: 'Spanish',
   Italian: 'Italian',
 };
 
 // Country flag emoji per language, used to decorate the context-menu Translate
-// items. Rendered as flags by Chrome on macOS. English uses the UK flag.
+// items. Rendered as flags by Chrome on macOS. English uses the UK flag. Both
+// Romanian variants share the Romanian flag.
 export const LANGUAGE_FLAGS: Record<SupportedLanguage, string> = {
   English: '🇬🇧',
   German: '🇩🇪',
   Romanian: '🇷🇴',
+  'Romanian (no diacritics)': '🇷🇴',
   Spanish: '🇪🇸',
   Italian: '🇮🇹',
 };
@@ -140,6 +144,7 @@ export const CONTEXT_MENU_IDS = {
   TRANSLATE_EN: 'translate_en',
   TRANSLATE_DE: 'translate_de',
   TRANSLATE_RO: 'translate_ro',
+  TRANSLATE_RO_ASCII: 'translate_ro_ascii',
   TRANSLATE_ES: 'translate_es',
   TRANSLATE_IT: 'translate_it',
   SEPARATOR_2: 'ct_sep_2',
