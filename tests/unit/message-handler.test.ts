@@ -40,9 +40,14 @@ beforeAll(() => {
   installChromeMock();
 });
 
-beforeEach(() => {
+beforeEach(async () => {
   resetChromeMock();
   vi.clearAllMocks();
+  // Unified dispatch (#48): every action resolves a client via getActiveClient
+  // and passes it to the (mocked) task functions. Provide a benign default
+  // client; individual tests override it when they need to control the call.
+  const { getActiveClient } = await import('../../src/background/llm-client.ts');
+  vi.mocked(getActiveClient).mockReturnValue({ call: vi.fn(), healthCheck: vi.fn() });
 });
 
 describe('handleMessage', () => {
@@ -69,7 +74,8 @@ describe('handleMessage', () => {
     });
 
     expect(response).toMatchObject({ success: true, result: 'She does not know anything.' });
-    expect(correctGrammar).toHaveBeenCalledWith('She dont know nothing.', expect.any(Object));
+    // Unified dispatch: (client, text, options).
+    expect(correctGrammar).toHaveBeenCalledWith(expect.anything(), 'She dont know nothing.', expect.any(Object));
   });
 
   it('threads LLM metadata (model, tokens, elapsed) into the CORRECT_GRAMMAR success response', async () => {
@@ -126,7 +132,9 @@ describe('handleMessage', () => {
     });
 
     expect(response).toMatchObject({ success: true, result: 'Soarele straluceste.' });
+    // Unified dispatch: (client, text, targetLanguage, options).
     expect(translateText).toHaveBeenCalledWith(
+      expect.anything(),
       'The sun is shining.',
       'Romanian',
       expect.any(Object),
@@ -341,13 +349,15 @@ describe('handleMessage: OpenAI provider routing', () => {
     });
   }
 
-  it('routes CORRECT_GRAMMAR through getActiveClient when provider is openai', async () => {
+  it('routes CORRECT_GRAMMAR through the active client with the OpenAI model when provider is openai', async () => {
     await selectOpenAIProvider();
     const { getActiveClient } = await import('../../src/background/llm-client.ts');
-    const callMock = vi.fn().mockResolvedValue(
+    const client = { call: vi.fn(), healthCheck: vi.fn() };
+    vi.mocked(getActiveClient).mockReturnValue(client);
+    const { correctGrammar } = await import('../../src/background/tasks.ts');
+    vi.mocked(correctGrammar).mockResolvedValue(
       llmResult('Corrected via OpenAI.', { model: 'gpt-5-nano', totalTokens: 50, elapsedMs: 700 }),
     );
-    vi.mocked(getActiveClient).mockReturnValue({ call: callMock, healthCheck: vi.fn() });
 
     const { handleMessage } = await import('../../src/background/message-handler.ts');
     const response = await handleMessage({
@@ -362,20 +372,25 @@ describe('handleMessage: OpenAI provider routing', () => {
       totalTokens: 50,
       elapsedMs: 700,
     });
+    // Provider is selected inside getActiveClient; the unified task call carries
+    // the OpenAI model and the resolved client.
     expect(getActiveClient).toHaveBeenCalled();
-    expect(callMock).toHaveBeenCalled();
-    // The Ollama task path must NOT be used when OpenAI is the provider.
-    const { correctGrammar } = await import('../../src/background/tasks.ts');
-    expect(correctGrammar).not.toHaveBeenCalled();
+    expect(correctGrammar).toHaveBeenCalledWith(
+      client,
+      'She dont know.',
+      expect.objectContaining({ model: 'gpt-5-nano', temperature: 0.2 }),
+    );
   });
 
-  it('routes TRANSLATE through getActiveClient when provider is openai', async () => {
+  it('routes TRANSLATE through the active client with the OpenAI model when provider is openai', async () => {
     await selectOpenAIProvider();
     const { getActiveClient } = await import('../../src/background/llm-client.ts');
-    const callMock = vi.fn().mockResolvedValue(
+    const client = { call: vi.fn(), healthCheck: vi.fn() };
+    vi.mocked(getActiveClient).mockReturnValue(client);
+    const { translateText } = await import('../../src/background/tasks.ts');
+    vi.mocked(translateText).mockResolvedValue(
       llmResult('Translated via OpenAI.', { model: 'gpt-5-nano', totalTokens: 33, elapsedMs: 500 }),
     );
-    vi.mocked(getActiveClient).mockReturnValue({ call: callMock, healthCheck: vi.fn() });
 
     const { handleMessage } = await import('../../src/background/message-handler.ts');
     const response = await handleMessage({
@@ -390,15 +405,20 @@ describe('handleMessage: OpenAI provider routing', () => {
       totalTokens: 33,
       elapsedMs: 500,
     });
-    expect(callMock).toHaveBeenCalled();
+    expect(translateText).toHaveBeenCalledWith(
+      client,
+      'Hello.',
+      'German',
+      expect.objectContaining({ model: 'gpt-5-nano', temperature: 0.2 }),
+    );
   });
 
-  it('classifies an LLMError thrown by the OpenAI client to its ErrorCode', async () => {
+  it('classifies an LLMError thrown by the (OpenAI) client to its ErrorCode', async () => {
     await selectOpenAIProvider();
-    const { getActiveClient } = await import('../../src/background/llm-client.ts');
     const { LLMError } = await import('../../src/shared/errors.ts');
-    const callMock = vi.fn().mockRejectedValue(new LLMError('OPENAI_AUTH_FAILED', 'opaque (401)'));
-    vi.mocked(getActiveClient).mockReturnValue({ call: callMock, healthCheck: vi.fn() });
+    const { correctGrammar } = await import('../../src/background/tasks.ts');
+    // The unified task call propagates the client's LLMError; the handler classifies it.
+    vi.mocked(correctGrammar).mockRejectedValue(new LLMError('OPENAI_AUTH_FAILED', 'opaque (401)'));
 
     const { handleMessage } = await import('../../src/background/message-handler.ts');
     const response = await handleMessage({

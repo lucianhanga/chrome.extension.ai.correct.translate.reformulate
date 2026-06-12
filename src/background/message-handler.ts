@@ -20,7 +20,6 @@ import { correctGrammar, translateText, reformulateText, summarizeText } from '.
 import { checkOllamaHealth } from './ollama-client.ts';
 import { getActiveClient } from './llm-client.ts';
 import { checkOpenAIHealth } from './openai-client.ts';
-import { GRAMMAR_CORRECT_SYSTEM, buildTranslateSystemPrompt } from '../shared/prompts.ts';
 import { stripRomanianDiacritics } from '../shared/text.ts';
 
 // ============================================================
@@ -65,23 +64,13 @@ export async function handleMessage(message: unknown): Promise<ServiceWorkerResp
       }
 
       const settings = await getSettings();
+      const client = getActiveClient(settings);
+      const model = settings.provider === 'openai' ? settings.openaiModel : settings.model;
 
-      let llmResult: import('../shared/types.ts').LLMResult;
-      if (settings.provider === 'openai') {
-        // Route through the provider-agnostic client for OpenAI.
-        const client = getActiveClient(settings);
-        llmResult = await client.call(
-          GRAMMAR_CORRECT_SYSTEM,
-          message.payload.text,
-          { model: settings.openaiModel, temperature: 0.2 },
-        );
-      } else {
-        // Ollama path: delegate to correctGrammar so existing tests remain valid.
-        llmResult = await correctGrammar(message.payload.text, {
-          model: settings.model,
-          endpoint: settings.ollamaEndpoint,
-        });
-      }
+      const llmResult = await correctGrammar(client, message.payload.text, {
+        model,
+        temperature: 0.2,
+      });
 
       return {
         success: true,
@@ -103,27 +92,15 @@ export async function handleMessage(message: unknown): Promise<ServiceWorkerResp
       }
 
       const settings = await getSettings();
+      const client = getActiveClient(settings);
+      const model = settings.provider === 'openai' ? settings.openaiModel : settings.model;
 
-      let llmResult: import('../shared/types.ts').LLMResult;
-      if (settings.provider === 'openai') {
-        // Route through the provider-agnostic client for OpenAI.
-        const client = getActiveClient(settings);
-        const systemPrompt = buildTranslateSystemPrompt(
-          message.payload.targetLanguage,
-        );
-        llmResult = await client.call(
-          systemPrompt,
-          message.payload.text,
-          { model: settings.openaiModel, temperature: 0.2 },
-        );
-      } else {
-        // Ollama path: delegate to translateText so existing tests remain valid.
-        llmResult = await translateText(
-          message.payload.text,
-          message.payload.targetLanguage,
-          { model: settings.model, endpoint: settings.ollamaEndpoint },
-        );
-      }
+      const llmResult = await translateText(
+        client,
+        message.payload.text,
+        message.payload.targetLanguage,
+        { model, temperature: 0.2 },
+      );
 
       // Only the "Romanian (no diacritics)" target is delivered as plain ASCII.
       // Plain "Romanian" keeps its diacritics. This deterministic

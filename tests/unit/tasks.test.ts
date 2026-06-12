@@ -2,13 +2,15 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { GRAMMAR_CORRECT_SYSTEM, buildTranslateSystemPrompt, buildReformulateSystemPrompt } from '../../src/shared/prompts.ts';
 import type { LLMResult } from '../../src/shared/types.ts';
+import type { LLMClient } from '../../src/background/llm-client.ts';
 
-// Mock ollama-client before importing tasks
-vi.mock('../../src/background/ollama-client.ts', () => ({
-  callOllama: vi.fn(),
-}));
+// A fresh mock LLMClient wrapping the given call spy. All four tasks now go
+// through the provider-agnostic LLMClient.call(), so the tests assert on that.
+function mockClient(callMock: ReturnType<typeof vi.fn>): LLMClient {
+  return { call: callMock, healthCheck: vi.fn() } as unknown as LLMClient;
+}
 
-// Build an LLMResult fixture; callOllama now resolves to this shape, not a string.
+// Build an LLMResult fixture; client.call resolves to this shape.
 function llmResult(text: string, overrides: Partial<LLMResult> = {}): LLMResult {
   return { text, model: 'qwen3:14b', totalTokens: 100, elapsedMs: 1200, ...overrides };
 }
@@ -18,67 +20,67 @@ afterEach(() => {
 });
 
 describe('correctGrammar', () => {
-  it('calls callOllama with the grammar correction system prompt', async () => {
-    const { callOllama } = await import('../../src/background/ollama-client.ts');
+  it('calls client.call with the grammar correction system prompt', async () => {
     const { correctGrammar } = await import('../../src/background/tasks.ts');
-    vi.mocked(callOllama).mockResolvedValue(llmResult('Corrected text.'));
+    const callMock = vi.fn().mockResolvedValue(llmResult('Corrected text.'));
 
-    const result = await correctGrammar('She dont know nothing.');
+    const result = await correctGrammar(mockClient(callMock), 'She dont know nothing.', {
+      model: 'qwen3:14b',
+      temperature: 0.2,
+    });
     expect(result.text).toBe('Corrected text.');
-    expect(callOllama).toHaveBeenCalledWith(
+    expect(callMock).toHaveBeenCalledWith(
       GRAMMAR_CORRECT_SYSTEM,
       'She dont know nothing.',
-      expect.objectContaining({ temperature: 0.2 }),
+      { model: 'qwen3:14b', temperature: 0.2 },
     );
   });
 
-  it('passes model and endpoint options through to callOllama', async () => {
-    const { callOllama } = await import('../../src/background/ollama-client.ts');
+  it('passes the options through to client.call (any provider)', async () => {
     const { correctGrammar } = await import('../../src/background/tasks.ts');
-    vi.mocked(callOllama).mockResolvedValue(llmResult('ok'));
+    const callMock = vi.fn().mockResolvedValue(llmResult('ok'));
 
-    await correctGrammar('text', { model: 'qwen3:14b', endpoint: 'http://localhost:11434' });
-    expect(callOllama).toHaveBeenCalledWith(
+    await correctGrammar(mockClient(callMock), 'text', { model: 'gpt-5-nano', temperature: 0.2 });
+    expect(callMock).toHaveBeenCalledWith(
       GRAMMAR_CORRECT_SYSTEM,
       'text',
-      expect.objectContaining({ model: 'qwen3:14b', endpoint: 'http://localhost:11434', temperature: 0.2 }),
+      { model: 'gpt-5-nano', temperature: 0.2 },
     );
   });
 
-  it('propagates errors from callOllama', async () => {
-    const { callOllama } = await import('../../src/background/ollama-client.ts');
+  it('propagates errors from the client', async () => {
     const { correctGrammar } = await import('../../src/background/tasks.ts');
-    vi.mocked(callOllama).mockRejectedValue(new Error('Ollama unreachable: network error'));
+    const callMock = vi.fn().mockRejectedValue(new Error('Ollama unreachable: network error'));
 
-    await expect(correctGrammar('text')).rejects.toThrow('Ollama unreachable');
+    await expect(
+      correctGrammar(mockClient(callMock), 'text', { model: 'qwen3:14b' }),
+    ).rejects.toThrow('Ollama unreachable');
   });
 });
 
 describe('translateText', () => {
-  it('uses auto-detect prompt', async () => {
-    const { callOllama } = await import('../../src/background/ollama-client.ts');
+  it('uses the auto-detect translate prompt', async () => {
     const { translateText } = await import('../../src/background/tasks.ts');
-    vi.mocked(callOllama).mockResolvedValue(llmResult('Translated text.'));
+    const callMock = vi.fn().mockResolvedValue(llmResult('Translated text.'));
 
-    await translateText('Hello', 'Romanian');
-    const expectedPrompt = buildTranslateSystemPrompt('Romanian');
-    expect(callOllama).toHaveBeenCalledWith(
-      expectedPrompt,
+    await translateText(mockClient(callMock), 'Hello', 'Romanian', { model: 'qwen3:14b', temperature: 0.2 });
+    expect(callMock).toHaveBeenCalledWith(
+      buildTranslateSystemPrompt('Romanian'),
       'Hello',
-      expect.objectContaining({ temperature: 0.2 }),
+      { model: 'qwen3:14b', temperature: 0.2 },
     );
   });
 
-  it('prompt instructs auto-detect for all supported target languages', async () => {
-    const { callOllama } = await import('../../src/background/ollama-client.ts');
+  it('builds the right prompt for every supported target language', async () => {
     const { translateText } = await import('../../src/background/tasks.ts');
-    vi.mocked(callOllama).mockResolvedValue(llmResult('ok'));
 
-    for (const lang of ['English', 'German', 'Romanian'] as const) {
-      await translateText('text', lang);
-      const expectedPrompt = buildTranslateSystemPrompt(lang);
-      expect(callOllama).toHaveBeenCalledWith(
-        expectedPrompt,
+    for (const lang of [
+      'English', 'German', 'Romanian', 'Romanian (no diacritics)', 'Spanish', 'Italian',
+    ] as const) {
+      const callMock = vi.fn().mockResolvedValue(llmResult('ok'));
+      await translateText(mockClient(callMock), 'text', lang, { model: 'qwen3:14b' });
+      expect(callMock).toHaveBeenCalledWith(
+        buildTranslateSystemPrompt(lang),
         'text',
         expect.any(Object),
       );
@@ -86,13 +88,14 @@ describe('translateText', () => {
   });
 
   it('returns an LLMResult carrying the translated text and metadata', async () => {
-    const { callOllama } = await import('../../src/background/ollama-client.ts');
     const { translateText } = await import('../../src/background/tasks.ts');
-    vi.mocked(callOllama).mockResolvedValue(
+    const callMock = vi.fn().mockResolvedValue(
       llmResult('Soarele straluceste.', { model: 'qwen3:14b', totalTokens: 64, elapsedMs: 900 }),
     );
 
-    const result = await translateText('The sun is shining.', 'Romanian');
+    const result = await translateText(mockClient(callMock), 'The sun is shining.', 'Romanian', {
+      model: 'qwen3:14b',
+    });
     expect(result.text).toBe('Soarele straluceste.');
     expect(result.model).toBe('qwen3:14b');
     expect(result.totalTokens).toBe(64);

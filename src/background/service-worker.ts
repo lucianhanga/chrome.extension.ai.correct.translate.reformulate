@@ -10,7 +10,6 @@ import { classifyError, getUserMessage } from '../shared/errors.ts';
 import { getSettings, saveSettings } from '../shared/storage.ts';
 import { correctGrammar, translateText } from './tasks.ts';
 import { getActiveClient } from './llm-client.ts';
-import { GRAMMAR_CORRECT_SYSTEM, buildTranslateSystemPrompt } from '../shared/prompts.ts';
 import { CONTEXT_MENU_IDS } from '../shared/constants.ts';
 import type { ServiceWorkerToContentScriptMessage } from '../shared/messages.ts';
 
@@ -293,25 +292,17 @@ async function processContextMenuAction(
   targetLanguage?: import('../shared/types.ts').SupportedLanguage,
 ): Promise<import('../shared/types.ts').LLMResult> {
   const settings = await getSettings();
-
-  if (settings.provider === 'openai') {
-    const client = getActiveClient(settings);
-    const systemPrompt =
-      action === 'correct'
-        ? GRAMMAR_CORRECT_SYSTEM
-        : buildTranslateSystemPrompt(targetLanguage!);
-    return client.call(systemPrompt, text, { model: settings.openaiModel, temperature: 0.2 });
-  }
-
-  const ollamaOptions = { model: settings.model, endpoint: settings.ollamaEndpoint };
+  const client = getActiveClient(settings);
+  const model = settings.provider === 'openai' ? settings.openaiModel : settings.model;
+  const options = { model, temperature: 0.2 };
 
   if (action === 'correct') {
-    return correctGrammar(text, ollamaOptions);
+    return correctGrammar(client, text, options);
   }
 
   if (!targetLanguage) {
     throw new Error('targetLanguage is required for translate action');
   }
 
-  return translateText(text, targetLanguage, ollamaOptions);
+  return translateText(client, text, targetLanguage, options);
 }
