@@ -39,7 +39,19 @@ chrome.runtime.onStartup.addListener(() => {
 // ============================================================
 
 chrome.runtime.onMessage.addListener(
-  (message: unknown, _sender: chrome.runtime.MessageSender, sendResponse: (response: unknown) => void) => {
+  (message: unknown, sender: chrome.runtime.MessageSender, sendResponse: (response: unknown) => void) => {
+    // Trust boundary: only accept messages that originate from this extension
+    // (its own popup and content scripts share chrome.runtime.id). Reject
+    // anything else -- e.g. another installed extension -- so privileged actions
+    // like VALIDATE_OPENAI_KEY and SAVE_SETTINGS cannot be driven by outsiders.
+    if (sender.id !== chrome.runtime.id) {
+      sendResponse({
+        success: false,
+        error: 'Unauthorized sender.',
+        errorCode: 'INVALID_MESSAGE',
+      });
+      return false;
+    }
     handleMessage(message)
       .then(sendResponse)
       .catch((error: unknown) => {

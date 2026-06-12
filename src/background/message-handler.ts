@@ -13,7 +13,7 @@ import {
   isValidateOpenAIKeyRequest,
   isValidMessageType,
 } from '../shared/messages.ts';
-import { validateTextInput } from '../shared/validators.ts';
+import { validateTextInput, validateEndpointUrl } from '../shared/validators.ts';
 import { classifyError, getUserMessage } from '../shared/errors.ts';
 import { getSettings, saveSettings } from '../shared/storage.ts';
 import { correctGrammar, translateText, reformulateText, summarizeText } from './tasks.ts';
@@ -242,6 +242,19 @@ export async function handleMessage(message: unknown): Promise<ServiceWorkerResp
     // SAVE_SETTINGS
     if (isSaveSettingsRequest(message)) {
       const incoming = message.payload.settings;
+      // Trust boundary: if the Ollama endpoint is being changed, it must be a
+      // well-formed http(s) URL. This stops a crafted SAVE_SETTINGS from
+      // repointing outbound requests at an arbitrary target before they are
+      // persisted (the CSP connect-src is the runtime backstop).
+      if (incoming.ollamaEndpoint !== undefined) {
+        const endpointCheck = validateEndpointUrl(incoming.ollamaEndpoint);
+        if (!endpointCheck.valid) {
+          return errorResponse(
+            endpointCheck.errorCode ?? 'INVALID_MESSAGE',
+            endpointCheck.errorMessage,
+          );
+        }
+      }
       // If the popup sends the redaction sentinel, do not overwrite the stored key.
       const toSave: Partial<typeof incoming> = { ...incoming };
       if (toSave.openaiApiKey === '__SET__') {
