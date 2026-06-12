@@ -333,7 +333,7 @@ describe('QuickAction', () => {
     expect(meta).toHaveTextContent('2.4 s');
   });
 
-  it('renders the Reformulate button', async () => {
+  it('renders the Reformulate action tab', async () => {
     const { QuickAction } = await import('../../src/popup/components/QuickAction.tsx');
     const { container } = render(
       <QuickAction
@@ -344,10 +344,10 @@ describe('QuickAction', () => {
         defaultSummarizeLength="standard"
       />,
     );
-    expect(within(container).getByRole('button', { name: /^Reformulate$/i })).toBeInTheDocument();
+    expect(within(container).getByRole('tab', { name: /Reformulate/i })).toBeInTheDocument();
   });
 
-  it('renders the ToneSelector with the default tone', async () => {
+  it('reveals the ToneSelector only after selecting the Reformulate tab', async () => {
     const { QuickAction } = await import('../../src/popup/components/QuickAction.tsx');
     const { container } = render(
       <QuickAction
@@ -358,7 +358,10 @@ describe('QuickAction', () => {
         defaultSummarizeLength="standard"
       />,
     );
-    // The tone select should be present and have 'professional' as selected value.
+    // No combobox is visible for the default Correct action.
+    expect(within(container).queryByRole('combobox')).toBeNull();
+    fireEvent.click(within(container).getByRole('tab', { name: /Reformulate/i }));
+    // The tone select should now be present and have 'professional' selected.
     const selects = within(container).getAllByRole('combobox') as HTMLSelectElement[];
     const toneSelect = selects.find((s) => s.value === 'professional');
     expect(toneSelect).toBeDefined();
@@ -379,6 +382,8 @@ describe('QuickAction', () => {
       />,
     );
 
+    // Reveal the reformulate controls first.
+    fireEvent.click(within(container).getByRole('tab', { name: /Reformulate/i }));
     // Find the tone selector (value 'keep') and change it to 'friendly'.
     const selects = within(container).getAllByRole('combobox') as HTMLSelectElement[];
     const toneSelect = selects.find((s) => s.value === 'keep');
@@ -411,6 +416,8 @@ describe('QuickAction', () => {
       />,
     );
 
+    // Reveal the reformulate controls (the keep-terminology checkbox lives there).
+    fireEvent.click(within(container).getByRole('tab', { name: /Reformulate/i }));
     const checkbox = container.querySelector('input[type="checkbox"]') as HTMLInputElement;
     fireEvent.click(checkbox);
 
@@ -450,6 +457,8 @@ describe('QuickAction', () => {
     fireEvent.change(within(container).getByPlaceholderText(/Paste or type/i), {
       target: { value: 'Original text.' },
     });
+    // Select the Reformulate action, then Run it.
+    fireEvent.click(within(container).getByRole('tab', { name: /Reformulate/i }));
     fireEvent.click(within(container).getByRole('button', { name: /^Reformulate$/i }));
 
     await waitFor(() => {
@@ -461,6 +470,100 @@ describe('QuickAction', () => {
             tone: 'professional',
             keepTerminology: false,
           }),
+        }),
+      );
+    });
+  });
+
+  it('runs the selected action when Enter is pressed in the textarea', async () => {
+    const { chromeMock } = await import('../mocks/chrome.ts');
+    chromeMock.runtime.sendMessage.mockResolvedValue({
+      success: true,
+      result: 'She does not know.',
+      model: 'qwen3:14b',
+      totalTokens: 10,
+      elapsedMs: 100,
+    });
+
+    const { QuickAction } = await import('../../src/popup/components/QuickAction.tsx');
+    const { container } = render(
+      <QuickAction
+        defaultTargetLanguage="English"
+        provider="ollama"
+        defaultReformulateTone="keep"
+        keepTerminology={true}
+        defaultSummarizeLength="standard"
+      />,
+    );
+
+    const textarea = within(container).getByPlaceholderText(/Paste or type/i);
+    fireEvent.change(textarea, { target: { value: 'She dont know.' } });
+    fireEvent.keyDown(textarea, { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({ type: 'CORRECT_GRAMMAR' }),
+      );
+    });
+  });
+
+  it('does NOT run on Shift+Enter (allows a newline)', async () => {
+    const { chromeMock } = await import('../mocks/chrome.ts');
+    chromeMock.runtime.sendMessage.mockResolvedValue({ success: true, result: 'x', model: 'm', totalTokens: 1, elapsedMs: 1 });
+
+    const { QuickAction } = await import('../../src/popup/components/QuickAction.tsx');
+    const { container } = render(
+      <QuickAction
+        defaultTargetLanguage="English"
+        provider="ollama"
+        defaultReformulateTone="keep"
+        keepTerminology={true}
+        defaultSummarizeLength="standard"
+      />,
+    );
+
+    const textarea = within(container).getByPlaceholderText(/Paste or type/i);
+    fireEvent.change(textarea, { target: { value: 'hello' } });
+    fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
+
+    expect(chromeMock.runtime.sendMessage).not.toHaveBeenCalled();
+  });
+
+  it('sends a TRANSLATE message after selecting the Translate tab', async () => {
+    const { chromeMock } = await import('../mocks/chrome.ts');
+    chromeMock.runtime.sendMessage.mockResolvedValue({
+      success: true,
+      result: 'Bună ziua.',
+      model: 'gemma3:27b',
+      totalTokens: 12,
+      elapsedMs: 300,
+    });
+
+    const { QuickAction } = await import('../../src/popup/components/QuickAction.tsx');
+    const { container } = render(
+      <QuickAction
+        defaultTargetLanguage="Romanian"
+        provider="ollama"
+        defaultReformulateTone="keep"
+        keepTerminology={true}
+        defaultSummarizeLength="standard"
+      />,
+    );
+
+    fireEvent.change(within(container).getByPlaceholderText(/Paste or type/i), {
+      target: { value: 'Good day.' },
+    });
+    // The language selector appears only once Translate is the active action.
+    expect(within(container).queryByRole('combobox')).toBeNull();
+    fireEvent.click(within(container).getByRole('tab', { name: /Translate/i }));
+    expect(within(container).getByRole('combobox')).toBeInTheDocument();
+    fireEvent.click(within(container).getByRole('button', { name: /^Translate$/i }));
+
+    await waitFor(() => {
+      expect(chromeMock.runtime.sendMessage).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'TRANSLATE',
+          payload: expect.objectContaining({ text: 'Good day.', targetLanguage: 'Romanian' }),
         }),
       );
     });

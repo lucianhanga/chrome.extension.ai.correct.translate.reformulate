@@ -1,8 +1,16 @@
 // src/popup/components/QuickAction.tsx
-// Text area + action buttons for quick correction, translation, or reformulation from the popup.
+// Action-first quick panel: pick an action (Correct / Translate / Reformulate /
+// Summarize), see only that action's relevant control, then Run. Enter in the
+// textarea runs the selected action.
 
 import React, { useState } from 'react';
-import type { LLMProvider, SupportedLanguage, ReformulateTone, SummarizeLength } from '../../shared/types.ts';
+import type {
+  LLMProvider,
+  SupportedLanguage,
+  ReformulateTone,
+  SummarizeLength,
+  ActionType,
+} from '../../shared/types.ts';
 import type {
   SuccessResponse,
   ErrorResponse,
@@ -30,6 +38,14 @@ interface ResultState {
   elapsedMs: number;
 }
 
+// Action tabs, in display order. The label doubles as the Run button verb.
+const ACTIONS: ReadonlyArray<{ id: ActionType; label: string }> = [
+  { id: 'correct', label: 'Correct' },
+  { id: 'translate', label: 'Translate' },
+  { id: 'reformulate', label: 'Reformulate' },
+  { id: 'summarize', label: 'Summarize' },
+];
+
 export function QuickAction({
   defaultTargetLanguage,
   provider,
@@ -37,6 +53,7 @@ export function QuickAction({
   keepTerminology: initialKeepTerminology,
   defaultSummarizeLength,
 }: QuickActionProps): React.ReactElement {
+  const [action, setAction] = useState<ActionType>('correct');
   const [inputText, setInputText] = useState('');
   const [targetLanguage, setTargetLanguage] = useState<SupportedLanguage>(defaultTargetLanguage);
   const [tone, setTone] = useState<ReformulateTone>(defaultReformulateTone);
@@ -49,53 +66,47 @@ export function QuickAction({
   const charCount = inputText.length;
   const overLimit = charCount > MAX_INPUT_LENGTH;
   const isEmpty = inputText.trim() === '';
+  const canRun = !isEmpty && !overLimit && !loading;
+  const actionLabel = ACTIONS.find((a) => a.id === action)?.label ?? 'Run';
 
   // ============================================================
   // Settings persistence helpers
   // ============================================================
 
-  const persistTone = (newTone: ReformulateTone): void => {
-    chrome.runtime.sendMessage({
-      type: 'SAVE_SETTINGS',
-      payload: { settings: { defaultReformulateTone: newTone } },
-    }).catch((err: unknown) => {
-      console.error('[QuickAction] Failed to persist defaultReformulateTone:', err);
-    });
-  };
-
-  const persistKeepTerminology = (value: boolean): void => {
-    chrome.runtime.sendMessage({
-      type: 'SAVE_SETTINGS',
-      payload: { settings: { keepTerminology: value } },
-    }).catch((err: unknown) => {
-      console.error('[QuickAction] Failed to persist keepTerminology:', err);
-    });
-  };
-
-  const persistSummarizeLength = (newLength: SummarizeLength): void => {
-    chrome.runtime.sendMessage({
-      type: 'SAVE_SETTINGS',
-      payload: { settings: { defaultSummarizeLength: newLength } },
-    }).catch((err: unknown) => {
-      console.error('[QuickAction] Failed to persist defaultSummarizeLength:', err);
-    });
+  const persist = (settings: Record<string, unknown>, field: string): void => {
+    chrome.runtime
+      .sendMessage({ type: 'SAVE_SETTINGS', payload: { settings } })
+      .catch((err: unknown) => {
+        console.error(`[QuickAction] Failed to persist ${field}:`, err);
+      });
   };
 
   // ============================================================
-  // Action Handlers
+  // Run the currently selected action
   // ============================================================
 
-  const handleCorrect = async (): Promise<void> => {
-    if (isEmpty || overLimit || loading) return;
+  const buildRequest = (): { type: string; payload: Record<string, unknown> } => {
+    switch (action) {
+      case 'translate':
+        return { type: 'TRANSLATE', payload: { text: inputText, targetLanguage } };
+      case 'reformulate':
+        return { type: 'REFORMULATE', payload: { text: inputText, tone, keepTerminology } };
+      case 'summarize':
+        return { type: 'SUMMARIZE', payload: { text: inputText, length: summarizeLength } };
+      case 'correct':
+      default:
+        return { type: 'CORRECT_GRAMMAR', payload: { text: inputText } };
+    }
+  };
+
+  const runAction = async (): Promise<void> => {
+    if (!canRun) return;
     setLoading(true);
     setError(null);
     setResult(null);
 
     try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'CORRECT_GRAMMAR',
-        payload: { text: inputText },
-      }) as ServiceWorkerResponse;
+      const response = (await chrome.runtime.sendMessage(buildRequest())) as ServiceWorkerResponse;
 
       if (isSuccessResponse(response)) {
         setResult({
@@ -112,114 +123,57 @@ export function QuickAction({
       }
     } catch (err) {
       setError('Failed to communicate with extension service worker.');
-      console.error('[QuickAction] correct error:', err);
+      console.error(`[QuickAction] ${action} error:`, err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Translate. The source language is always auto-detected by the model.
-  const handleTranslate = async (): Promise<void> => {
-    if (isEmpty || overLimit || loading) return;
-    setLoading(true);
-    setError(null);
+  const run = (): void => {
+    runAction().catch((err: unknown) => {
+      console.error('[QuickAction] runAction unhandled:', err);
+    });
+  };
+
+  const selectAction = (next: ActionType): void => {
+    setAction(next);
+    // The previous result/error belongs to the previous action; clear it.
     setResult(null);
-
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'TRANSLATE',
-        payload: { text: inputText, targetLanguage },
-      }) as ServiceWorkerResponse;
-
-      if (isSuccessResponse(response)) {
-        setResult({
-          originalText: inputText,
-          resultText: response.result,
-          model: response.model,
-          totalTokens: response.totalTokens,
-          elapsedMs: response.elapsedMs,
-        });
-      } else if (isErrorResponse(response)) {
-        setError(response.error);
-      } else {
-        setError('Unexpected response from service worker.');
-      }
-    } catch (err) {
-      setError('Failed to communicate with extension service worker.');
-      console.error('[QuickAction] translate error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReformulate = async (): Promise<void> => {
-    if (isEmpty || overLimit || loading) return;
-    setLoading(true);
     setError(null);
-    setResult(null);
-
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'REFORMULATE',
-        payload: { text: inputText, tone, keepTerminology },
-      }) as ServiceWorkerResponse;
-
-      if (isSuccessResponse(response)) {
-        setResult({
-          originalText: inputText,
-          resultText: response.result,
-          model: response.model,
-          totalTokens: response.totalTokens,
-          elapsedMs: response.elapsedMs,
-        });
-      } else if (isErrorResponse(response)) {
-        setError(response.error);
-      } else {
-        setError('Unexpected response from service worker.');
-      }
-    } catch (err) {
-      setError('Failed to communicate with extension service worker.');
-      console.error('[QuickAction] reformulate error:', err);
-    } finally {
-      setLoading(false);
-    }
   };
 
-  const handleSummarize = async (): Promise<void> => {
-    if (isEmpty || overLimit || loading) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
+  // ============================================================
+  // Render
+  // ============================================================
 
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'SUMMARIZE',
-        payload: { text: inputText, length: summarizeLength },
-      }) as ServiceWorkerResponse;
-
-      if (isSuccessResponse(response)) {
-        setResult({
-          originalText: inputText,
-          resultText: response.result,
-          model: response.model,
-          totalTokens: response.totalTokens,
-          elapsedMs: response.elapsedMs,
-        });
-      } else if (isErrorResponse(response)) {
-        setError(response.error);
-      } else {
-        setError('Unexpected response from service worker.');
-      }
-    } catch (err) {
-      setError('Failed to communicate with extension service worker.');
-      console.error('[QuickAction] summarize error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const tabClass = (selected: boolean): string =>
+    [
+      'py-1.5 rounded-md text-xs font-semibold transition-colors duration-100',
+      'focus:outline-none focus:ring-2 focus:ring-[#89b4fa] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]',
+      'disabled:opacity-40 disabled:cursor-not-allowed',
+      selected
+        ? 'bg-[#45475a] text-[#cdd6f4]'
+        : 'bg-[#181825] text-[#a6adc8] hover:bg-[#313244]',
+    ].join(' ');
 
   return (
     <div className="flex flex-col gap-3">
+      {/* Action selector */}
+      <div role="tablist" aria-label="Action" className="grid grid-cols-4 gap-1">
+        {ACTIONS.map((a) => (
+          <button
+            key={a.id}
+            role="tab"
+            aria-selected={action === a.id}
+            disabled={loading}
+            onClick={() => selectAction(a.id)}
+            className={tabClass(action === a.id)}
+          >
+            {a.label}
+          </button>
+        ))}
+      </div>
+
       {/* Text input */}
       <div className="flex flex-col gap-1">
         <label className="text-xs font-semibold text-[#a6adc8] uppercase tracking-wide">
@@ -232,6 +186,13 @@ export function QuickAction({
             setInputText(e.target.value);
             setResult(null);
             setError(null);
+          }}
+          onKeyDown={(e) => {
+            // Enter runs the selected action; Shift+Enter inserts a newline.
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              run();
+            }
           }}
           placeholder="Paste or type text here..."
           rows={4}
@@ -254,138 +215,83 @@ export function QuickAction({
         </div>
       </div>
 
-      {/* Target language for translation */}
-      <LanguageSelector
-        label="Translate To"
-        value={targetLanguage}
-        onChange={(v) => {
-          if (v !== null) setTargetLanguage(v);
-        }}
-        includeAutoDetect={false}
-        disabled={loading}
-      />
-
-      {/* Tone selector and keep-terminology checkbox for reformulation */}
-      <ToneSelector
-        value={tone}
-        onChange={(newTone) => {
-          setTone(newTone);
-          persistTone(newTone);
-        }}
-        disabled={loading}
-      />
-
-      <div className="flex items-center gap-2">
-        <input
-          id="keep-terminology"
-          type="checkbox"
-          checked={keepTerminology}
+      {/* Action-specific controls (only the relevant one is shown) */}
+      {action === 'translate' && (
+        <LanguageSelector
+          label="Translate To"
+          value={targetLanguage}
+          onChange={(v) => {
+            if (v !== null) setTargetLanguage(v);
+          }}
+          includeAutoDetect={false}
           disabled={loading}
-          onChange={(e) => {
-            const newValue = e.target.checked;
-            setKeepTerminology(newValue);
-            persistKeepTerminology(newValue);
-          }}
-          className="
-            w-3.5 h-3.5 rounded border border-[#313244] bg-[#181825]
-            accent-[#22c55e] cursor-pointer
-            disabled:opacity-50 disabled:cursor-not-allowed
-          "
         />
-        <label
-          htmlFor="keep-terminology"
-          title="When enabled, domain-specific terms and technical vocabulary are kept in their original language during reformulation."
-          className="text-xs text-[#a6adc8] cursor-pointer select-none"
-        >
-          Keep terminology
-        </label>
-      </div>
+      )}
 
-      {/* Summary length for summarization */}
-      <LengthSelector
-        value={summarizeLength}
-        onChange={(newLength) => {
-          setSummarizeLength(newLength);
-          persistSummarizeLength(newLength);
-        }}
-        disabled={loading}
-      />
+      {action === 'reformulate' && (
+        <>
+          <ToneSelector
+            value={tone}
+            onChange={(newTone) => {
+              setTone(newTone);
+              persist({ defaultReformulateTone: newTone }, 'defaultReformulateTone');
+            }}
+            disabled={loading}
+          />
+          <div className="flex items-center gap-2">
+            <input
+              id="keep-terminology"
+              type="checkbox"
+              checked={keepTerminology}
+              disabled={loading}
+              onChange={(e) => {
+                const newValue = e.target.checked;
+                setKeepTerminology(newValue);
+                persist({ keepTerminology: newValue }, 'keepTerminology');
+              }}
+              className="
+                w-3.5 h-3.5 rounded border border-[#313244] bg-[#181825]
+                accent-[#22c55e] cursor-pointer
+                disabled:opacity-50 disabled:cursor-not-allowed
+              "
+            />
+            <label
+              htmlFor="keep-terminology"
+              title="When enabled, domain-specific terms and technical vocabulary are kept in their original language during reformulation."
+              className="text-xs text-[#a6adc8] cursor-pointer select-none"
+            >
+              Keep terminology
+            </label>
+          </div>
+        </>
+      )}
 
-      {/* Action buttons */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => {
-            handleCorrect().catch((err: unknown) => {
-              console.error('[QuickAction] handleCorrect unhandled:', err);
-            });
+      {action === 'summarize' && (
+        <LengthSelector
+          value={summarizeLength}
+          onChange={(newLength) => {
+            setSummarizeLength(newLength);
+            persist({ defaultSummarizeLength: newLength }, 'defaultSummarizeLength');
           }}
-          disabled={isEmpty || overLimit || loading}
-          className="
-            flex-1 py-2 rounded-md text-sm font-semibold
-            bg-[#313244] text-[#cdd6f4]
-            hover:bg-[#45475a] active:brightness-90
-            transition-colors duration-100
-            focus:outline-none focus:ring-2 focus:ring-[#89b4fa] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]
-            disabled:opacity-40 disabled:cursor-not-allowed
-          "
-        >
-          {loading ? 'Processing...' : 'Correct'}
-        </button>
-        <button
-          onClick={() => {
-            handleTranslate().catch((err: unknown) => {
-              console.error('[QuickAction] handleTranslate unhandled:', err);
-            });
-          }}
-          disabled={isEmpty || overLimit || loading}
-          className="
-            flex-1 py-2 rounded-md text-sm font-semibold
-            bg-[#313244] text-[#cdd6f4]
-            hover:bg-[#45475a] active:brightness-90
-            transition-colors duration-100
-            focus:outline-none focus:ring-2 focus:ring-[#89b4fa] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]
-            disabled:opacity-40 disabled:cursor-not-allowed
-          "
-        >
-          {loading ? 'Processing...' : 'Translate'}
-        </button>
-        <button
-          onClick={() => {
-            handleReformulate().catch((err: unknown) => {
-              console.error('[QuickAction] handleReformulate unhandled:', err);
-            });
-          }}
-          disabled={isEmpty || overLimit || loading}
-          className="
-            flex-1 py-2 rounded-md text-sm font-semibold
-            bg-[#313244] text-[#cdd6f4]
-            hover:bg-[#45475a] active:brightness-90
-            transition-colors duration-100
-            focus:outline-none focus:ring-2 focus:ring-[#89b4fa] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]
-            disabled:opacity-40 disabled:cursor-not-allowed
-          "
-        >
-          {loading ? 'Processing...' : 'Reformulate'}
-        </button>
-        <button
-          onClick={() => {
-            handleSummarize().catch((err: unknown) => {
-              console.error('[QuickAction] handleSummarize unhandled:', err);
-            });
-          }}
-          disabled={isEmpty || overLimit || loading}
-          className="
-            flex-1 py-2 rounded-md text-sm font-semibold
-            bg-[#313244] text-[#cdd6f4]
-            hover:bg-[#45475a] active:brightness-90
-            transition-colors duration-100
-            focus:outline-none focus:ring-2 focus:ring-[#89b4fa] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]
-            disabled:opacity-40 disabled:cursor-not-allowed
-          "
-        >
-          {loading ? 'Processing...' : 'Summarize'}
-        </button>
-      </div>
+          disabled={loading}
+        />
+      )}
+
+      {/* Primary Run button */}
+      <button
+        onClick={run}
+        disabled={!canRun}
+        className="
+          w-full py-2 rounded-md text-sm font-semibold
+          bg-[#22c55e] text-[#1e1e2e]
+          hover:brightness-110 active:brightness-95
+          transition-[filter] duration-100
+          focus:outline-none focus:ring-2 focus:ring-[#22c55e] focus:ring-offset-1 focus:ring-offset-[#1e1e2e]
+          disabled:opacity-40 disabled:cursor-not-allowed
+        "
+      >
+        {loading ? 'Processing...' : actionLabel}
+      </button>
 
       {/* Processing indicator */}
       {loading && (

@@ -78,10 +78,13 @@ test.describe('Popup: mount and layout', () => {
     await expect(popup.locator('textarea')).toBeVisible();
   });
 
-  test('popup renders Correct and Translate buttons', async ({ openPopup }) => {
+  test('popup renders the action tabs and the Correct run button', async ({ openPopup }) => {
     const popup = await openPopup();
+    // Action selector tabs.
+    await expect(popup.getByRole('tab', { name: /Correct/i })).toBeVisible();
+    await expect(popup.getByRole('tab', { name: /Translate/i })).toBeVisible();
+    // Default action is Correct, so the primary run button reads "Correct".
     await expect(popup.getByRole('button', { name: /^Correct$/i })).toBeVisible();
-    await expect(popup.getByRole('button', { name: /^Translate$/i })).toBeVisible();
   });
 
   test('popup shows the Settings toggle button', async ({ openPopup }) => {
@@ -285,12 +288,14 @@ test.describe('Popup: Quick Action -- Correct', () => {
 test.describe('Popup: Quick Action -- Translate', () => {
   test('Translate button is disabled when textarea is empty', async ({ openPopup }) => {
     const popup = await openPopup();
+    await popup.getByRole('tab', { name: /Translate/i }).click();
     await expect(popup.getByRole('button', { name: /^Translate$/i })).toBeDisabled();
   });
 
   test('translates text and shows a non-empty result', async ({ openPopup }) => {
     const popup = await openPopup();
     await popup.locator('textarea').fill('Hello, how are you today?');
+    await popup.getByRole('tab', { name: /Translate/i }).click();
     await popup.getByRole('button', { name: /^Translate$/i }).click();
 
     // A non-empty result element should appear after the real Ollama call.
@@ -302,6 +307,8 @@ test.describe('Popup: Quick Action -- Translate', () => {
 
   test('target language selector is visible and has all three options', async ({ openPopup }) => {
     const popup = await openPopup();
+    // The language selector is only rendered for the Translate action.
+    await popup.getByRole('tab', { name: /Translate/i }).click();
     // <option> elements are never "visible" in Playwright unless the dropdown is open.
     // Assert that the options are present (attached to the DOM) instead.
     await expect(popup.locator('option[value="English"]').first()).toBeAttached();
@@ -312,6 +319,7 @@ test.describe('Popup: Quick Action -- Translate', () => {
   test('changing target language to Romanian and translating returns a non-empty result', async ({ openPopup }) => {
     const popup = await openPopup();
     await popup.locator('textarea').fill('Hello, how are you today?');
+    await popup.getByRole('tab', { name: /Translate/i }).click();
 
     // Select Romanian in the "Translate To" language selector.
     const selects = popup.locator('select');
@@ -340,6 +348,7 @@ test.describe('Popup: Quick Action -- Translate', () => {
     // confirmation element is shown.
     const popup = await openPopup();
     await popup.locator('textarea').fill('Hello, how are you today?');
+    await popup.getByRole('tab', { name: /Translate/i }).click();
     await popup.getByRole('button', { name: /^Translate$/i }).click();
 
     const resultContainer = popup.locator('[data-testid="result-text"]');
@@ -360,6 +369,7 @@ test.describe('Popup: Quick Action -- Translate', () => {
     const textarea = popup.locator('textarea');
     const originalText = 'Hallo, wie geht es dir heute?';
     await textarea.fill(originalText);
+    await popup.getByRole('tab', { name: /Translate/i }).click();
     await popup.getByRole('button', { name: /^Translate$/i }).click();
 
     const resultContainer = popup.locator('[data-testid="result-text"]');
