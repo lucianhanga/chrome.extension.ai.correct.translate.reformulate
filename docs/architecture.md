@@ -96,7 +96,7 @@ Version 1.3 records the changes shipped through extension **v1.7.0** on `main`:
   `Italian` in addition to English, German, and Romanian (`SUPPORTED_LANGUAGES`,
   `LANGUAGE_FLAGS`), exposed as `translate_es` / `translate_it` context-menu
   items.
-- **Shipped Ollama default is `gemma3:27b`** (`DEFAULT_MODEL`); `qwen3:14b` is the
+- **Shipped Ollama default is `qwen3.6:35b-a3b`** (`DEFAULT_MODEL`); `qwen3:14b` is the
   lighter `FALLBACK_MODEL`. Any pulled model remains selectable in the popup.
   (Historical and evaluation references to `qwen3:14b` below describe the
   evaluation, not the current default.)
@@ -127,7 +127,7 @@ Version 1.3 records the changes shipped through extension **v1.7.0** on `main`:
 
 - Ollama runs locally on `http://localhost:11434`
 - User's machine: Apple M4 Pro, 48 GB unified memory
-- Model `gemma3:27b` (the shipped default) is pulled and available
+- Model `qwen3.6:35b-a3b` (the shipped default) is pulled and available
 - Only English, German, Romanian, Spanish, and Italian are supported
 - The user understands that LLM inference takes 5-40 seconds depending on model load state
 
@@ -163,7 +163,7 @@ graph TB
 
     subgraph Local["Local Machine"]
         Ollama["Ollama Server<br/>localhost:11434"]
-        OllamaModel["gemma3:27b /<br/>qwen3:14b"]
+        OllamaModel["qwen3.6:35b-a3b /<br/>qwen3:14b"]
     end
 
     subgraph Cloud["OpenAI Platform"]
@@ -840,7 +840,7 @@ export interface StorageSchema {
 // From src/shared/constants.ts
 export const DEFAULT_SETTINGS: ExtensionSettings = {
   ollamaEndpoint: 'http://localhost:11434',
-  model: 'gemma3:27b',
+  model: 'qwen3.6:35b-a3b',
   defaultTargetLanguage: 'English',
   provider: 'ollama',                  // default provider
   openaiModel: 'gpt-5-nano',
@@ -864,7 +864,7 @@ merge (not a replace) so partial updates are safe.
 | Key | Type | Default | Purpose |
 |-----|------|---------|---------|
 | `settings.ollamaEndpoint` | `string` | `"http://localhost:11434"` | Ollama API base URL |
-| `settings.model` | `string` | `"gemma3:27b"` | Active Ollama model name |
+| `settings.model` | `string` | `"qwen3.6:35b-a3b"` | Active Ollama model name |
 | `settings.defaultTargetLanguage` | `SupportedLanguage` | `"English"` | Default target for translations |
 | `settings.provider` | `'ollama' \| 'openai'` | `"ollama"` | Active LLM provider |
 | `settings.openaiModel` | `'gpt-5.4-nano' \| 'gpt-5-nano'` | `"gpt-5-nano"` | Active OpenAI model |
@@ -1105,7 +1105,7 @@ The Replace button receives focus when the result overlay opens.
 | Error Code | Condition | User-Facing Message | Color |
 |------------|-----------|---------------------|-------|
 | `OLLAMA_UNREACHABLE` | Ollama server not running or network error | "Cannot reach Ollama. Make sure it is running: `ollama serve`" | Red `#ef4444` |
-| `MODEL_NOT_FOUND` | HTTP 404 from Ollama -- model not pulled | "Model not found. Pull it first: `ollama pull gemma3:27b`" | Red `#ef4444` |
+| `MODEL_NOT_FOUND` | HTTP 404 from Ollama -- model not pulled | "Model not found. Pull it first: `ollama pull qwen3.6:35b-a3b`" | Red `#ef4444` |
 | `REQUEST_TIMEOUT` | Provider did not respond within 60 seconds | "Request timed out. The model may be loading. Try again, or switch to a faster model (qwen3:14b) in settings." | Yellow `#eab308` |
 | `EMPTY_INPUT` | User submitted empty or whitespace-only text | "No text provided. Select some text first." | Yellow `#eab308` |
 | `INPUT_TOO_LONG` | Input exceeds 10,000 characters | "Text is too long (max 10,000 characters). Select a shorter passage." | Yellow `#eab308` |
@@ -1121,7 +1121,7 @@ The four `OPENAI_*` codes are produced by `openai-client.ts` as structural
 `LLMError` instances; `classifyError` reads their `code` directly. The Ollama
 client produces plain `Error` objects that `classifyError` maps by message
 string. `MODEL_NOT_FOUND`'s message names the configured model (`ollama pull
-${model}`); the shipped default is `gemma3:27b`.
+${model}`); the shipped default is `qwen3.6:35b-a3b`.
 
 ### 10.2 Error Flow
 
@@ -1340,7 +1340,7 @@ and storage/settings flows in a real Chrome.
 | **Translation RO->DE** | Select Romanian text, right-click, "Translate to" -> "German" | Overlay shows German translation. |
 | **Popup: Correct** | Open popup, paste text, click "Correct" | Result shown inline in popup; auto-copied with "Copied to clipboard". |
 | **Popup: Translate** | Open popup, paste text, select target language, click "Translate" | Translation shown inline; auto-copied. |
-| **Popup: Settings** | Change model from the default `gemma3:27b` to `qwen3:14b`, close and reopen popup | Setting persists. |
+| **Popup: Settings** | Change model from the default `qwen3.6:35b-a3b` to `qwen3:14b`, close and reopen popup | Setting persists. |
 | **Popup: Status** | With Ollama running, check status indicator | Green dot. |
 | **Popup: Status (Ollama off)** | Stop Ollama, open popup | Red dot with error message. |
 | **Provider switch to OpenAI** | In Settings, select OpenAI provider for the first time | Consent dialog appears; on confirm, OpenAI is selected and the `OpenAI` badge shows. |
@@ -1692,7 +1692,7 @@ The developer agent should test the chosen plugin and fall back if it causes bui
 
 | Parameter | Value | Rationale |
 |-----------|-------|-----------|
-| `model` | `gemma3:27b` (shipped default, `DEFAULT_MODEL`); `qwen3:14b` is the lighter fallback (`FALLBACK_MODEL`), and any pulled model is selectable | Good multilingual quality (EN/DE/RO/ES/IT); `qwen3:14b` is the faster fallback |
+| `model` | `qwen3.6:35b-a3b` (shipped default, `DEFAULT_MODEL`); `qwen3:14b` is the lighter fallback (`FALLBACK_MODEL`), and any pulled model is selectable | Good multilingual quality (EN/DE/RO/ES/IT); `qwen3:14b` is the faster fallback |
 | `temperature` | `0.2` | Low creativity for deterministic correction/translation |
 | `top_p` | `0.8` | Qwen3 recommended default |
 | `top_k` | `20` | Qwen3 recommended default |

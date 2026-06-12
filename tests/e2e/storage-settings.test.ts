@@ -57,7 +57,7 @@ test.describe('Settings: defaults on first run', () => {
     // Target the model select specifically using data-testid to avoid matching
     // the language selector (which is the first <select> in DOM order).
     const modelSelect = popup.locator('[data-testid="model-select"]');
-    await expect(modelSelect).toHaveValue('gemma3:27b');
+    await expect(modelSelect).toHaveValue('qwen3.6:35b-a3b');
   });
 });
 

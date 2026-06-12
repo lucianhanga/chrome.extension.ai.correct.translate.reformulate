@@ -94,12 +94,12 @@ folder is produced, or run `pnpm package` to create the zip yourself.
 ### 3. Ollama prerequisite (default provider)
 
 If you use the default Ollama provider, Ollama must be running locally with a
-model pulled. The shipped default model is `gemma3:27b`. The Settings model
+model pulled. The shipped default model is `qwen3.6:35b-a3b`. The Settings model
 dropdown also offers `qwen3.6:35b-a3b` (highest quality) and `gemma4:latest`
 (smallest); pull whichever you select.
 
 ```bash
-ollama pull gemma3:27b
+ollama pull qwen3.6:35b-a3b
 ollama serve
 ```
 
@@ -170,7 +170,7 @@ pick up changes.
 ### Latest test run
 
 Run on the `main` branch on 2026-06-09, against a real local Ollama
-(model `gemma3:27b`):
+(model `qwen3.6:35b-a3b`):
 
 | Check | Result |
 |-------|--------|
@@ -189,7 +189,7 @@ The [`CI` workflow](.github/workflows/ci.yml) runs `pnpm typecheck`, `pnpm lint`
 push to `main`. The **CI** badge at the top of this README reflects it.
 
 The end-to-end suite (`pnpm test:e2e`) is **not** run in CI: it drives a real
-Chrome against a real local Ollama with the `gemma3:27b` model (~17 GB),
+Chrome against a real local Ollama with the `qwen3.6:35b-a3b` model (~17 GB),
 which does not fit a GitHub-hosted runner. It remains a local pre-release gate.
 
 ## Architecture

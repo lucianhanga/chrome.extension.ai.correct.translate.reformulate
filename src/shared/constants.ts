@@ -42,7 +42,7 @@ export const LANGUAGE_FLAGS: Record<SupportedLanguage, string> = {
 // ============================================================
 
 export const DEFAULT_OLLAMA_ENDPOINT = 'http://localhost:11434';
-export const DEFAULT_MODEL = 'gemma3:27b';
+export const DEFAULT_MODEL = 'qwen3.6:35b-a3b';
 export const FALLBACK_MODEL = 'qwen3:14b';
 
 // ============================================================
