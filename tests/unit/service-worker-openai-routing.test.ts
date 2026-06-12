@@ -1,11 +1,12 @@
 // tests/unit/service-worker-openai-routing.test.ts
-// Regression tests for the OpenAI provider routing in processContextMenuAction.
+// Regression tests for provider routing in processContextMenuAction.
 //
-// Bug fixed: the context-menu "Correct" flow in service-worker.ts used to call
-// correctGrammar (Ollama) unconditionally, ignoring settings.provider. The
-// translate/reformulate flows hand off to the content script and go through
-// message-handler.ts (which was already provider-aware), but the correct flow
-// went through processContextMenuAction which was Ollama-only.
+// Unified dispatch (#48): the context-menu Correct/Translate flow now routes
+// through getActiveClient(settings) -> correctGrammar/translateText(client, ...)
+// for BOTH providers. The provider is selected solely inside getActiveClient,
+// so these tests assert that the active client is consulted and that the call
+// carries the provider-correct model. tasks.ts is intentionally NOT mocked so
+// the real correctGrammar exercises the unified client.call() path.
 //
 // These tests import the full service worker module (with all side-effect
 // listeners mocked) and drive the context-menu handler via the __ctClickHandler
@@ -14,14 +15,8 @@
 import { describe, it, expect, vi, beforeAll, beforeEach } from 'vitest';
 import { installChromeMock, resetChromeMock, chromeMock } from '../mocks/chrome.ts';
 
-// Mock all modules that service-worker.ts imports to prevent real network calls
-// and isolate the routing logic under test.
-vi.mock('../../src/background/tasks.ts', () => ({
-  correctGrammar: vi.fn(),
-  translateText: vi.fn(),
-  reformulateText: vi.fn(),
-}));
-
+// Mock the network clients so no real calls are made; getActiveClient is mocked
+// to return a controllable spy client.
 vi.mock('../../src/background/ollama-client.ts', () => ({
   callOllama: vi.fn(),
   checkOllamaHealth: vi.fn(),
@@ -160,7 +155,7 @@ describe('processContextMenuAction: OpenAI routing', () => {
     expect(typeof ctClickHandler).toBe('function');
   });
 
-  it('calls getActiveClient (not correctGrammar) for Correct action when provider is openai', async () => {
+  it('routes Correct through the active client carrying the OpenAI model', async () => {
     await seedOpenAISettings();
 
     const { getActiveClient } = await import('../../src/background/llm-client.ts');
@@ -180,11 +175,14 @@ describe('processContextMenuAction: OpenAI routing', () => {
     // Let the executeScript .then() chain run.
     await new Promise((r) => setTimeout(r, 20));
 
+    // getActiveClient picks the provider; the unified correctGrammar calls it
+    // with the OpenAI model.
     expect(getActiveClient).toHaveBeenCalled();
-    expect(callMock).toHaveBeenCalled();
-
-    const { correctGrammar } = await import('../../src/background/tasks.ts');
-    expect(correctGrammar).not.toHaveBeenCalled();
+    expect(callMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ model: 'gpt-5-nano', temperature: 0.2 }),
+    );
   });
 
   it('uses GRAMMAR_CORRECT_SYSTEM prompt and openaiModel when routing through OpenAI', async () => {
@@ -213,16 +211,17 @@ describe('processContextMenuAction: OpenAI routing', () => {
     );
   });
 
-  it('calls correctGrammar (Ollama path) for Correct action when provider is ollama', async () => {
+  it('routes Correct through the active client carrying the Ollama model when provider is ollama', async () => {
     await seedOllamaSettings();
 
-    const { correctGrammar } = await import('../../src/background/tasks.ts');
-    vi.mocked(correctGrammar).mockResolvedValue({
+    const { getActiveClient } = await import('../../src/background/llm-client.ts');
+    const callMock = vi.fn().mockResolvedValue({
       text: 'Corrected via Ollama.',
       model: 'qwen3:14b',
       totalTokens: 120,
       elapsedMs: 2100,
     });
+    vi.mocked(getActiveClient).mockReturnValue({ call: callMock, healthCheck: vi.fn() });
 
     const { resolveMenuAction } = await import('../../src/background/context-menu.ts');
     vi.mocked(resolveMenuAction).mockReturnValue({ action: 'correct' });
@@ -230,10 +229,14 @@ describe('processContextMenuAction: OpenAI routing', () => {
     triggerCorrectAction();
     await new Promise((r) => setTimeout(r, 20));
 
-    expect(correctGrammar).toHaveBeenCalled();
-
-    const { getActiveClient } = await import('../../src/background/llm-client.ts');
-    expect(getActiveClient).not.toHaveBeenCalled();
+    // The same unified path runs; getActiveClient selects the Ollama client and
+    // the call carries the configured Ollama model.
+    expect(getActiveClient).toHaveBeenCalled();
+    expect(callMock).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.any(String),
+      expect.objectContaining({ model: 'qwen3:14b', temperature: 0.2 }),
+    );
   });
 
   it('sends SHOW_LOADING before the LLM call and SHOW_RESULT after for Correct+OpenAI', async () => {

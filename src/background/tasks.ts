@@ -1,8 +1,7 @@
 // src/background/tasks.ts
 // High-level task functions for grammar correction and translation.
 
-import type { LLMResult, SupportedLanguage, OllamaCallOptions, ReformulateTone, SummarizeLength } from '../shared/types.ts';
-import { callOllama } from './ollama-client.ts';
+import type { LLMResult, SupportedLanguage, ReformulateTone, SummarizeLength } from '../shared/types.ts';
 import {
   GRAMMAR_CORRECT_SYSTEM,
   buildTranslateSystemPrompt,
@@ -16,20 +15,20 @@ import type { LLMClient, LLMCallOptions } from './llm-client.ts';
 // ============================================================
 
 /**
- * Correct grammar and spelling in the given text using Ollama.
+ * Correct grammar and spelling in the given text using the provider-agnostic
+ * LLMClient (Ollama or OpenAI).
  *
+ * @param client - The active LLM client
  * @param text - The text to correct
- * @param ollamaOptions - Optional overrides for model, endpoint, timeout
+ * @param options - Model name and optional temperature override
  * @returns LLMResult with corrected text and metadata
  */
 export async function correctGrammar(
+  client: LLMClient,
   text: string,
-  ollamaOptions: OllamaCallOptions = {},
+  options: LLMCallOptions,
 ): Promise<LLMResult> {
-  return callOllama(GRAMMAR_CORRECT_SYSTEM, text, {
-    temperature: 0.2,
-    ...ollamaOptions,
-  });
+  return client.call(GRAMMAR_CORRECT_SYSTEM, text, options);
 }
 
 // ============================================================
@@ -37,24 +36,23 @@ export async function correctGrammar(
 // ============================================================
 
 /**
- * Translate text to targetLanguage. The source language is always auto-detected
- * by the model.
+ * Translate text to targetLanguage using the provider-agnostic LLMClient. The
+ * source language is always auto-detected by the model.
  *
+ * @param client - The active LLM client
  * @param text - The text to translate
- * @param targetLanguage - Target language ('English', 'German', or 'Romanian')
- * @param ollamaOptions - Optional overrides for model, endpoint, timeout
+ * @param targetLanguage - Target language
+ * @param options - Model name and optional temperature override
  * @returns LLMResult with translated text and metadata
  */
 export async function translateText(
+  client: LLMClient,
   text: string,
   targetLanguage: SupportedLanguage,
-  ollamaOptions: OllamaCallOptions = {},
+  options: LLMCallOptions,
 ): Promise<LLMResult> {
   const systemPrompt = buildTranslateSystemPrompt(targetLanguage);
-  return callOllama(systemPrompt, text, {
-    temperature: 0.2,
-    ...ollamaOptions,
-  });
+  return client.call(systemPrompt, text, options);
 }
 
 // ============================================================

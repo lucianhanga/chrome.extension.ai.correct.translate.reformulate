@@ -1,6 +1,6 @@
 {
   "name": "correct-and-translate",
-  "version": "1.9.1",
+  "version": "1.9.2",
   "description": "Grammar correction and translation powered by local Ollama LLM.",
   "scripts": {
     "build": "vite build && CONTENT_OUT_DIR=dist vite build --config vite.config.content.ts",
