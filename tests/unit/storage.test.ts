@@ -18,12 +18,12 @@ async function getStorageModule() {
 }
 
 describe('default Ollama model', () => {
-  // Guard the shipped default model. gemma3:27b reliably preserves the input
-  // language (the gemma4:latest default drifted EN->RO on reformulate, #32),
-  // with strong multilingual quality.
-  it('is gemma3:27b', () => {
-    expect(DEFAULT_MODEL).toBe('gemma3:27b');
-    expect(DEFAULT_SETTINGS.model).toBe('gemma3:27b');
+  // Guard the shipped default model. qwen3.6:35b-a3b is the eval-doc primary
+  // recommendation for multilingual European tasks (EN/DE/RO/ES/IT) and the
+  // user's chosen default (#47); qwen3:14b remains the lighter fallback.
+  it('is qwen3.6:35b-a3b', () => {
+    expect(DEFAULT_MODEL).toBe('qwen3.6:35b-a3b');
+    expect(DEFAULT_SETTINGS.model).toBe('qwen3.6:35b-a3b');
   });
 });
 

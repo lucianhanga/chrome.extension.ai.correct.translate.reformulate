@@ -14,7 +14,7 @@
 //
 // Preconditions for Ollama path:
 //   - Ollama is running:          ollama serve
-//   - Model is pulled:            ollama pull gemma3:27b
+//   - Model is pulled:            ollama pull qwen3.6:35b-a3b
 //   - OLLAMA_ORIGINS is set:      export OLLAMA_ORIGINS="chrome-extension://*"
 //   - Test build exists:          pnpm build:test
 //
@@ -33,7 +33,7 @@ export const TEST_SERVER_PORT_FILE = resolve(process.cwd(), 'test-results', '.te
 export const PROVIDER_INFO_FILE = resolve(process.cwd(), 'test-results', '.provider-info.json');
 
 const OLLAMA_BASE = 'http://localhost:11434';
-const OLLAMA_MODEL = 'gemma3:27b';
+const OLLAMA_MODEL = 'qwen3.6:35b-a3b';
 const OPENAI_MODEL = 'gpt-5-nano';
 const WARMUP_TIMEOUT_MS = 300_000;
 const HEALTH_TIMEOUT_MS = 10_000;
