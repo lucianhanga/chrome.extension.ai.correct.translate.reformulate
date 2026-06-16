@@ -17,6 +17,7 @@ RESET='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 MANIFEST="${PROJECT_DIR}/public/manifest.json"
+PKG_JSON="${PROJECT_DIR}/package.json"
 DIST_DIR="${PROJECT_DIR}/dist"
 
 # ---------------------------------------------------------------------------
@@ -31,6 +32,23 @@ fi
 VERSION="$(grep '"version"' "${MANIFEST}" | head -1 | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
 if [ -z "${VERSION}" ]; then
   printf "${RED}ERROR: Could not read version from manifest.json${RESET}\n" >&2
+  exit 1
+fi
+
+# ---------------------------------------------------------------------------
+# The Chrome Web Store version is taken from manifest.json, but package.json
+# must agree so the two never drift. Fail loudly if they disagree.
+# ---------------------------------------------------------------------------
+
+if [ ! -f "${PKG_JSON}" ]; then
+  printf "${RED}ERROR: package.json not found at %s${RESET}\n" "${PKG_JSON}" >&2
+  exit 1
+fi
+
+PKG_VERSION="$(grep '"version"' "${PKG_JSON}" | head -1 | sed 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')"
+if [ "${PKG_VERSION}" != "${VERSION}" ]; then
+  printf "${RED}ERROR: version mismatch: package.json is %s but public/manifest.json is %s.${RESET}\n" "${PKG_VERSION}" "${VERSION}" >&2
+  printf "${YELLOW}Bump both files to the same version before packaging.${RESET}\n" >&2
   exit 1
 fi
 

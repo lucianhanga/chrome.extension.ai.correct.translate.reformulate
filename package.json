@@ -1,6 +1,6 @@
 {
   "name": "correct-and-translate",
-  "version": "1.9.2",
+  "version": "1.10.0",
   "description": "Grammar correction and translation powered by local Ollama LLM.",
   "scripts": {
     "build": "vite build && CONTENT_OUT_DIR=dist vite build --config vite.config.content.ts",
@@ -17,8 +17,8 @@
     "package": "bash scripts/package.sh"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Lucian Hanga",
+  "license": "MIT",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
