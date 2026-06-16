@@ -96,8 +96,10 @@ folder is produced, or run `pnpm package` to create the zip yourself.
 
 If you use the default Ollama provider, Ollama must be running locally with a
 model pulled. The shipped default model is `qwen3.6:35b-a3b`. The Settings model
-dropdown also offers `qwen3.6:35b-a3b` (highest quality) and `gemma4:latest`
-(smallest); pull whichever you select.
+dropdown also offers `gemma3:27b` (highest quality), `qwen3:14b` (~9 GB, a good
+balance for 16 GB machines), and `gemma4:latest` (smallest); pull whichever you
+select. See [docs/ollama-install-guide.md](docs/ollama-install-guide.md) for
+which model fits your RAM.
 
 ```bash
 ollama pull qwen3.6:35b-a3b

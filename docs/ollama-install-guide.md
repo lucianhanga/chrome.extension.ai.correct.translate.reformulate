@@ -49,12 +49,13 @@ The models offered in the extension's **Settings → Model** dropdown are:
 | Model | Notes |
 |-------|-------|
 | `qwen3.6:35b-a3b` | Default. Mixture-of-experts: ~35B total parameters, only ~3B active per token, so it is fast for its quality but still needs RAM for the full weights (~17 GB on disk). |
-| `gemma3:27b` | Dense 27B model; highest quality of the three, heaviest. |
-| `gemma4:latest` | Smallest of the three; good for lower-RAM machines. |
+| `gemma3:27b` | Dense 27B model; highest quality, heaviest. |
+| `qwen3:14b` | Smaller, lower-RAM option (~9 GB on disk); fits a 16 GB machine comfortably while keeping good quality. A solid default if the 27B/35B models are too large for your RAM. |
+| `gemma4:latest` | Smallest of the four; good for lower-RAM machines. |
 
-The model field also accepts **any** model name you have pulled. On a
-lower-RAM machine you can pull a smaller model (for example `qwen3:14b` or a
-small Gemma) and type its name into the Model field.
+The model field also accepts **any** model name you have pulled. On a very
+low-RAM machine you can pull an even smaller model (for example a small Gemma)
+and type its name into the Model field.
 
 You can list what you have pulled and see each file size with:
 
@@ -125,13 +126,13 @@ The table below is approximate guidance for Apple Silicon MacBooks (M-series).
 Exact fit depends on quantization and other apps you have open. When in doubt,
 check the model's file size with `ollama list` and keep a few GB free.
 
-| MacBook unified memory | Comfortable model size | Shipped models that fit | Suggestion |
+| MacBook unified memory | Comfortable model size | Built-in models that fit | Suggestion |
 |------------------------|------------------------|--------------------------|------------|
-| **8 GB** | up to ~3–4B | None of the three shipped models | Use a small model (e.g. a 3–4B Gemma) typed into the Model field, or use OpenAI. |
-| **16 GB** | up to ~7–9B (a 14B is tight) | None of the three fit comfortably | Pull a smaller model such as `qwen3:14b` (tight) or a 7–8B model; or use OpenAI. |
-| **24 GB** | up to ~14B comfortably | `gemma4:latest` if small; 27B is tight | `qwen3:14b` is a good balance; the 27B/35B defaults leave little headroom. |
-| **32 GB** | up to ~27–35B | `qwen3.6:35b-a3b` (~17 GB) and `gemma3:27b` fit with room for context | The shipped default `qwen3.6:35b-a3b` runs well here. |
-| **48–64 GB** | 27–35B comfortably, larger possible | All three shipped models | Run any shipped model with a large context and other apps open. |
+| **8 GB** | up to ~3–4B | None of the built-in models | Use a small model (e.g. a 3–4B Gemma) typed into the Model field, or use OpenAI. |
+| **16 GB** | up to ~14B (~9 GB) | `qwen3:14b` (~9 GB) | Select `qwen3:14b` from the dropdown — the best-quality built-in option that fits 16 GB; the 27B/35B models won't. |
+| **24 GB** | up to ~14B comfortably; 27B tight | `qwen3:14b` comfortably; `gemma4:latest`; 27B is tight | `qwen3:14b` for headroom, or a 27B model if you keep other apps light. |
+| **32 GB** | up to ~27–35B | `qwen3.6:35b-a3b` (~17 GB) and `gemma3:27b` fit with room for context | The default `qwen3.6:35b-a3b` runs well here. |
+| **48–64 GB** | 27–35B comfortably, larger possible | All built-in models | Run any built-in model with a large context and other apps open. |
 | **64 GB+** | very large models | All | Plenty of headroom for the biggest models. |
 
 Notes:
