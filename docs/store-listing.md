@@ -71,13 +71,21 @@ This extension is free and open source (MIT licensed). You can read the full
 source code, verify exactly what it does, report issues, or contribute at:
 https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate
 
+GUIDES & USER MANUAL
+- How to use it (illustrated walkthrough):
+  https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/blob/main/docs/user-guide.md
+- Install the local AI (Ollama) on macOS & Windows, and which model fits your RAM:
+  https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/blob/main/docs/ollama-install-guide.md
+- Using OpenAI: create a key, set a spending limit, add a usage alert:
+  https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/blob/main/docs/openai-setup-guide.md
+
 PERMISSIONS & PRIVACY
 The extension does not run any servers of its own and does not use analytics or
 tracking. Broad page access is used only so it can read your selection and place
 results into editable fields (including webmail compose editors in iframes);
 network access is restricted to your local Ollama and, if you opt in, OpenAI.
 Privacy policy:
-https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/blob/main/PRIVACY.md
+https://lucianhanga.github.io/chrome.extension.ai.correct.translate.reformulate/privacy.html
 ```
 
 ## Permission justifications and the data-practices form

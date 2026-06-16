@@ -72,8 +72,13 @@ for full setup and privacy details.
 
 ## Installation
 
-This extension is not on the Chrome Web Store, so it is installed by loading it
-unpacked -- using either a prebuilt release (recommended) or your own build.
+> The extension has been **submitted to the Chrome Web Store** and is awaiting
+> review. Once published, a store link will be added here. In the meantime (or
+> if you prefer), you can install it unpacked using the steps below.
+
+You can install it unpacked using either a prebuilt release (recommended) or
+your own build. New to the extension? See the illustrated
+[User Guide](docs/user-guide.md).
 
 ### 1. Get the extension files
 
@@ -277,8 +282,14 @@ docs/              architecture.md and supporting documents
 For Chrome Web Store submission steps (build, listing assets, permission
 justifications, the data-practices form, and the privacy-policy URL), see
 [docs/PUBLISHING.md](docs/PUBLISHING.md). The paste-ready listing copy is in
-[docs/store-listing.md](docs/store-listing.md), and the privacy policy is
-[PRIVACY.md](PRIVACY.md) (hosted version: [privacy.html](privacy.html)).
+[docs/store-listing.md](docs/store-listing.md).
+
+The privacy policy is published at
+<https://lucianhanga.github.io/chrome.extension.ai.correct.translate.reformulate/privacy.html>
+(source: [PRIVACY.md](PRIVACY.md) / [privacy.html](privacy.html)). End-user
+manuals: [User Guide](docs/user-guide.md),
+[Ollama install guide](docs/ollama-install-guide.md), and
+[OpenAI setup guide](docs/openai-setup-guide.md).
 
 ## License
 
