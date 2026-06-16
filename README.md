@@ -8,7 +8,8 @@ against **OpenAI**.
 [![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
 ![tests](https://img.shields.io/badge/tests-320%20unit%20%7C%20127%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
-![version](https://img.shields.io/badge/version-1.7.0-1e3a5f)
+![version](https://img.shields.io/badge/version-1.10.0-1e3a5f)
+![license](https://img.shields.io/badge/license-MIT-22c55e)
 [![release](https://img.shields.io/github/v/release/lucianhanga/chrome.extension.ai.correct.translate.reformulate)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/releases/latest)
 
 > The **CI** badge reflects the type-check, lint, unit-test and build workflow
@@ -115,13 +116,19 @@ Then start (or restart) Ollama so the new process picks up the setting. On
 macOS, `launchctl setenv` does not survive a reboot -- run it again after a
 restart, or install a LaunchAgent for a permanent fix.
 
+For step-by-step install instructions on **macOS and Windows**, the
+`OLLAMA_ORIGINS` setup for each, and a guide to **which model fits your RAM**,
+see [docs/ollama-install-guide.md](docs/ollama-install-guide.md).
+
 ### 4. OpenAI setup (optional)
 
 To use OpenAI instead, open the extension popup, expand **Settings**, set
 **Provider** to `OpenAI`, accept the one-time consent dialog, and enter your
 OpenAI API key. The supported models are `gpt-5.4-nano` and `gpt-5-nano`.
-Full instructions, including the API key permissions required for key
-validation, are in
+Remember that with OpenAI your selected text leaves your machine. A guide to
+creating a key, **setting a spending limit, and adding a usage alert** is in
+[docs/openai-setup-guide.md](docs/openai-setup-guide.md); full provider and
+privacy details are in
 [docs/provider-setup-and-privacy.md](docs/provider-setup-and-privacy.md).
 
 ## Usage
@@ -134,6 +141,10 @@ result is copied to the clipboard.
 **From the popup:** click the toolbar icon, paste or type text into the quick
 action area, pick an action, and the result is shown inline and copied to the
 clipboard.
+
+For an illustrated walkthrough (with screenshots of the context menu, result
+panel, and both provider settings), see the
+[User Guide](docs/user-guide.md).
 
 ## Development
 
@@ -259,8 +270,15 @@ tests/             unit/ (Vitest) and e2e/ (Playwright)
 docs/              architecture.md and supporting documents
 ```
 
+## Publishing
+
+For Chrome Web Store submission steps (build, listing assets, permission
+justifications, the data-practices form, and the privacy-policy URL), see
+[docs/PUBLISHING.md](docs/PUBLISHING.md). The paste-ready listing copy is in
+[docs/store-listing.md](docs/store-listing.md), and the privacy policy is
+[PRIVACY.md](PRIVACY.md) (hosted version: [privacy.html](privacy.html)).
+
 ## License
 
-No `LICENSE` file currently exists in this repository, so the project's license
-is not yet specified. (`package.json` carries `"license": "ISC"`, but without a
-`LICENSE` file this is not an authoritative grant.)
+This project is open source under the [MIT License](LICENSE). You are free to
+use, modify, and distribute it with attribution.

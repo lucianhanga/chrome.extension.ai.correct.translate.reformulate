@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy — Correct &amp; Translate</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.6;
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+      color: #1a1a2e;
+      background: #ffffff;
+    }
+    @media (prefers-color-scheme: dark) {
+      body { color: #e6e6ef; background: #0a0e1a; }
+      code { background: #1a2032; }
+      a { color: #6ea8ff; }
+      th { background: #1a2032; }
+      td, th { border-color: #2a3350; }
+    }
+    h1 { font-size: 1.8rem; margin-bottom: 0.25rem; }
+    h2 { font-size: 1.2rem; margin-top: 2rem; }
+    .updated { color: #888; font-size: 0.9rem; margin-top: 0; }
+    .summary {
+      border-left: 4px solid #4f8cff;
+      padding: 0.75rem 1rem;
+      background: rgba(79, 140, 255, 0.08);
+      border-radius: 4px;
+    }
+    code {
+      background: #eef1f7;
+      padding: 0.1rem 0.35rem;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95rem; }
+    th, td { border: 1px solid #d5dae6; padding: 0.5rem 0.7rem; text-align: left; }
+    th { background: #eef1f7; }
+    ul { padding-left: 1.25rem; }
+  </style>
+</head>
+<body>
+  <h1>Privacy Policy — Correct &amp; Translate</h1>
+  <p class="updated">Last updated: 2026-06-16</p>
+
+  <p>
+    Correct &amp; Translate is an open-source Chrome extension that corrects,
+    translates, reformulates, and summarizes selected text using a large
+    language model. This policy explains exactly where your text goes, depending
+    on which provider you choose.
+  </p>
+  <p>
+    Source code:
+    <a href="https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate">github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate</a>
+  </p>
+
+  <h2>Summary</h2>
+  <p class="summary">
+    The extension does not run any servers of its own and does not collect,
+    sell, or share your data with the developer. Where your text goes depends
+    entirely on the provider you select in Settings.
+  </p>
+  <table>
+    <thead>
+      <tr><th>Provider</th><th>Default</th><th>Where your text goes</th><th>Leaves your machine</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Ollama (local)</td><td>Yes</td><td>Your own computer (<code>http://localhost:11434</code>)</td><td>No</td></tr>
+      <tr><td>OpenAI</td><td>No (opt-in)</td><td>OpenAI's servers (<code>https://api.openai.com</code>)</td><td>Yes</td></tr>
+    </tbody>
+  </table>
+
+  <h2>What data the extension handles</h2>
+  <ul>
+    <li><strong>The text you select</strong> (or type into the popup) is sent to
+      the active provider so it can be processed. It is not stored by the
+      extension after the result is returned.</li>
+    <li><strong>Your settings</strong> (provider, model, default
+      language/tone/length, Ollama endpoint, and your OpenAI API key if you
+      enter one) are stored locally in <code>chrome.storage.local</code>. They
+      are never synced to a cloud account and never sent anywhere except, in the
+      case of the OpenAI API key, to OpenAI in the <code>Authorization</code>
+      header of OpenAI requests.</li>
+  </ul>
+
+  <h2>Provider 1 — Ollama (local, default)</h2>
+  <p>
+    When the active provider is Ollama, all text stays on your own computer.
+    Requests go only to a local Ollama instance at
+    <code>http://localhost:11434</code> (or the endpoint you configure).
+    Nothing leaves your device, and no credential is used. Use this provider
+    when a correction or translation must stay private.
+  </p>
+
+  <h2>Provider 2 — OpenAI (opt-in)</h2>
+  <p>
+    When you switch the active provider to OpenAI, the text you process is sent
+    over HTTPS to OpenAI's API (<code>https://api.openai.com</code>) for
+    processing. Your text leaves your computer and is handled by OpenAI under
+    <a href="https://openai.com/policies/">OpenAI's API data usage policies</a>.
+    To reduce surprise:
+  </p>
+  <ul>
+    <li>Switching to OpenAI requires a one-time, in-product consent dialog that
+      states your text will be sent to OpenAI.</li>
+    <li>While OpenAI is active, a persistent <code>OpenAI</code> badge is shown
+      in the popup as an always-visible reminder.</li>
+    <li>Your OpenAI API key is stored only in <code>chrome.storage.local</code>,
+      is redacted before it is shown back in the UI, is never written to logs or
+      error messages, and is sent only to OpenAI.</li>
+  </ul>
+  <p>
+    If you do not want any text to leave your machine, use the default Ollama
+    provider and do not enable OpenAI.
+  </p>
+
+  <h2>What the extension does NOT do</h2>
+  <ul>
+    <li>It does not run any developer-operated server or backend.</li>
+    <li>It does not use analytics, tracking, advertising, or telemetry.</li>
+    <li>It does not collect personally identifiable information.</li>
+    <li>It does not sell or share your data with third parties. (When you opt in
+      to OpenAI, text is sent to OpenAI as the LLM provider you chose — not to
+      the developer.)</li>
+  </ul>
+
+  <h2>Permissions</h2>
+  <ul>
+    <li><code>storage</code> — saves your settings locally.</li>
+    <li><code>contextMenus</code> — adds the right-click menu.</li>
+    <li><code>activeTab</code> + <code>scripting</code> — injects the result
+      overlay into the page you are actively using when you trigger an action.</li>
+    <li><code>clipboardWrite</code> — copies each result to your clipboard.</li>
+    <li>Host access (<code>&lt;all_urls&gt;</code>) — lets the content script
+      reach the editable area on any page, including cross-origin iframes such
+      as webmail compose editors. Broad host access does not mean broad network
+      access.</li>
+  </ul>
+
+  <h2>Network access</h2>
+  <p>
+    Outgoing connections are restricted by the extension's <code>connect-src</code>
+    Content Security Policy to exactly two destinations: local Ollama
+    (<code>http://localhost:11434</code>) and OpenAI
+    (<code>https://api.openai.com</code>). The extension cannot contact any
+    other server.
+  </p>
+
+  <h2>Changes to this policy</h2>
+  <p>
+    If the extension's data practices change, this page will be updated and the
+    "Last updated" date revised.
+  </p>
+
+  <h2>Contact</h2>
+  <p>Questions about this policy: lucianhanga@googlemail.com</p>
+</body>
+</html>
