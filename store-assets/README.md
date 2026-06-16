@@ -16,13 +16,18 @@ and [../docs/store-listing.md](../docs/store-listing.md) for the listing text.
 (The same captures, plus the Ollama settings and OpenAI consent dialog, live in
 `../docs/images/` and are used in the [user guide](../docs/user-guide.md).)
 
-## Before uploading (one manual step)
+## Upload-ready screenshots (1280x800)
 
-The Chrome Web Store requires each screenshot to be exactly **1280x800** or
-**640x400** (PNG or JPEG). The captures here are smaller UI shots, so place each
-on a 1280x800 canvas (centered, with a background) or scale to 640x400 before
-uploading in the Developer Dashboard. At least one screenshot is required; all
-four make a stronger listing.
+The `store-01-…` through `store-04-…` files are the raw captures centered on a
+1280x800 white canvas — the exact size the Chrome Web Store requires. Upload
+these four directly in the Developer Dashboard.
 
-> Tip: for the cleanest result, center each capture on a solid 1280x800
-> background that matches the extension's dark theme.
+They were generated from the raw captures with macOS `sips`:
+
+```bash
+for f in 01-context-menu 02-result-overlay 03-popup-quick-action 04-settings-providers; do
+  sips -p 800 1280 --padColor FFFFFF "$f.png" --out "store-$f.png"
+done
+```
+
+> To regenerate on a dark canvas instead, swap `FFFFFF` for e.g. `12141C`.

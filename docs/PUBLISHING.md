@@ -81,12 +81,15 @@ one-time consent dialog, and surfaced by a persistent badge.
 
 ### Privacy policy URL
 
-The store requires a public URL. Options:
+The policy is published via **GitHub Pages** at:
 
-- Enable **GitHub Pages** on this repo and link the hosted
-  [`privacy.html`](../privacy.html).
-- Or link the rendered Markdown directly:
-  `https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/blob/main/PRIVACY.md`
+```
+https://lucianhanga.github.io/chrome.extension.ai.correct.translate.reformulate/privacy.html
+```
+
+(Source: [`privacy.html`](../privacy.html) / [`PRIVACY.md`](../PRIVACY.md). Pages
+is served from `main` / root; the `PRIVACY.md` blob URL also works as a
+fallback.)
 
 ## Submit
 
