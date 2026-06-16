@@ -45,6 +45,10 @@ Prepare these in the Developer Dashboard before submitting:
   the full setup guides.
 - **Category**: Productivity.
 - **Language**: English.
+- **Promotional tiles** (optional — only used for store featuring): a small
+  440x280 and a marquee 1400x560 tile, both 24-bit PNG with no alpha. Ready-made
+  versions are in `store-assets/` (`promo-small-440x280.png`,
+  `promo-marquee-1400x560.png`); leaving the slots empty is fine.
 
 ## Permission justifications (Privacy practices tab)
 

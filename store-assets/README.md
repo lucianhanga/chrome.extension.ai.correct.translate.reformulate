@@ -38,3 +38,17 @@ done
 > To regenerate on a dark canvas instead, swap `FFFFFF` for e.g. `12141C`.
 > Verify with `sips -g hasAlpha -g samplesPerPixel store-*.png` (expect
 > `hasAlpha: no`, `samplesPerPixel: 3`).
+
+## Promotional tiles (optional)
+
+The Chrome Web Store has two optional promo-tile slots, used only for store
+merchandising / featuring — they are not required to publish. Both are 24-bit
+PNG with no alpha:
+
+- `promo-small-440x280.png` — Small promo tile (440x280).
+- `promo-marquee-1400x560.png` — Marquee promo tile (1400x560).
+
+These are branded marketing graphics (logo + name + tagline on the dark/green
+theme), not screenshots. They were rendered from HTML templates with headless
+Google Chrome at 2x for crisp text, downscaled to the exact canvas size, then
+passed through the same JPEG round-trip to strip the alpha channel.
