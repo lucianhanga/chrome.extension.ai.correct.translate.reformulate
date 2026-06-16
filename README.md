@@ -142,6 +142,10 @@ result is copied to the clipboard.
 action area, pick an action, and the result is shown inline and copied to the
 clipboard.
 
+For an illustrated walkthrough (with screenshots of the context menu, result
+panel, and both provider settings), see the
+[User Guide](docs/user-guide.md).
+
 ## Development
 
 The project uses **pnpm** and **Vite**.
