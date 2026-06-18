@@ -124,6 +124,16 @@ function createOrReplaceOverlay(): ShadowRoot {
 
   const host = document.createElement('div');
   host.setAttribute('data-ct-overlay-host', '');
+  // Fix the host out of normal document flow immediately. If it were left as a
+  // static element at the end of <body>, focusing a control inside it (before
+  // positionOverlay runs) would scroll the page to the bottom to reveal it --
+  // throwing off the selection-relative positioning so the overlay lands off
+  // screen. positionOverlay sets the final top/left.
+  host.style.position = 'fixed';
+  host.style.top = '0';
+  host.style.left = '0';
+  host.style.zIndex = '2147483647';
+  host.style.pointerEvents = 'none';
   document.body.appendChild(host);
 
   const shadow = host.attachShadow({ mode: 'closed' });
@@ -150,7 +160,7 @@ function cleanup(): void {
   // editable field the user selected text in), so keyboard users are not
   // stranded once the dialog is gone.
   if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
-    previouslyFocused.focus();
+    previouslyFocused.focus({ preventScroll: true });
   }
   previouslyFocused = null;
 }
@@ -352,7 +362,7 @@ function renderError(root: ShadowRoot, data: OverlayErrorData): void {
 
   // Escape dismisses; Tab is trapped within the dialog; focus moves to Dismiss.
   setupKeyboardHandler();
-  dismissBtn.focus();
+  dismissBtn.focus({ preventScroll: true });
 }
 
 // ============================================================
@@ -407,56 +417,79 @@ function buildOverlayShell(root: ShadowRoot, title: string): HTMLElement {
 // ============================================================
 
 interface Position {
-  top: number;
+  /** Viewport-relative left edge of the selection. */
   left: number;
+  /** Viewport-relative top edge of the selection rect. */
+  anchorTop: number;
+  /** Viewport-relative bottom edge of the selection rect. */
   anchorBottom: number;
 }
 
+// Fallbacks used when the host is fixed-positioned but not yet measured.
+const OVERLAY_FALLBACK_WIDTH = 480;
+const OVERLAY_FALLBACK_HEIGHT = 320;
+
 function getSelectionPosition(): Position {
+  const fallback: Position = { left: 80, anchorTop: 72, anchorBottom: 100 };
+
   const selection = window.getSelection();
-  if (!selection || selection.rangeCount === 0) {
-    return { top: 80, left: 80, anchorBottom: 100 };
-  }
+  if (!selection || selection.rangeCount === 0) return fallback;
 
   const range = selection.getRangeAt(0);
   const rect = range.getBoundingClientRect();
 
-  return {
-    top: rect.bottom + window.scrollY + 8,
-    left: rect.left + window.scrollX,
-    anchorBottom: rect.bottom + window.scrollY,
-  };
+  // A collapsed selection on an empty line (or a textarea/input, whose internal
+  // selection is not exposed via window.getSelection) yields an all-zero rect.
+  // Fall back to a sensible top-left anchor rather than pinning to (0,0).
+  if (rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0) {
+    return fallback;
+  }
+
+  // The overlay host is position:fixed, so it is positioned in viewport
+  // coordinates -- getBoundingClientRect already returns those (no scroll add).
+  return { left: rect.left, anchorTop: rect.top, anchorBottom: rect.bottom };
 }
 
 function positionOverlay(host: HTMLElement, pos: Position): void {
-  const OVERLAY_MAX_WIDTH = 480;
-  const OVERLAY_MAX_HEIGHT = 320;
   const MARGIN = 12;
+  const GAP = 8;
 
   const vpWidth = window.innerWidth;
   const vpHeight = window.innerHeight;
 
+  // Measure the actual rendered overlay so positioning matches its real size
+  // (the loading state is short; a result with long text can reach the 320px
+  // cap). Reading offset* forces layout, which is fine here. Fall back to the
+  // CSS max dimensions if the element is not measurable yet.
+  const overlayEl = currentShadowRoot?.querySelector('.ct-overlay') as HTMLElement | null;
+  const overlayWidth = overlayEl?.offsetWidth || OVERLAY_FALLBACK_WIDTH;
+  const overlayHeight = overlayEl?.offsetHeight || OVERLAY_FALLBACK_HEIGHT;
+
+  // Horizontal: align to the selection's left edge, kept within the viewport.
   let left = pos.left;
-  if (left + OVERLAY_MAX_WIDTH > vpWidth - MARGIN) {
-    left = vpWidth - OVERLAY_MAX_WIDTH - MARGIN;
-  }
+  if (left + overlayWidth > vpWidth - MARGIN) left = vpWidth - overlayWidth - MARGIN;
   if (left < MARGIN) left = MARGIN;
 
-  const spaceBelow = vpHeight - (pos.anchorBottom - window.scrollY);
+  // Vertical: prefer below the selection; if it would not fit, place it above;
+  // if neither side has room (small viewport / tall overlay), fall back to a
+  // bottom-anchored position. A final clamp then guarantees the whole overlay
+  // stays on screen so its text is never cut off at the viewport edge.
+  const spaceBelow = vpHeight - pos.anchorBottom;
+  const spaceAbove = pos.anchorTop;
   let top: number;
-
-  if (spaceBelow >= OVERLAY_MAX_HEIGHT + 8) {
-    top = pos.top;
+  if (spaceBelow >= overlayHeight + GAP) {
+    top = pos.anchorBottom + GAP;
+  } else if (spaceAbove >= overlayHeight + GAP) {
+    top = pos.anchorTop - overlayHeight - GAP;
   } else {
-    top = pos.anchorBottom - window.scrollY - OVERLAY_MAX_HEIGHT - 8 + window.scrollY;
-    if (top < window.scrollY + MARGIN) {
-      top = pos.top;
-    }
+    top = vpHeight - overlayHeight - MARGIN;
   }
+  if (top + overlayHeight > vpHeight - MARGIN) top = vpHeight - overlayHeight - MARGIN;
+  if (top < MARGIN) top = MARGIN;
 
   host.style.position = 'fixed';
   host.style.zIndex = '2147483647';
-  host.style.top = `${top - window.scrollY}px`;
+  host.style.top = `${top}px`;
   host.style.left = `${left}px`;
   host.style.pointerEvents = 'none';
 }
@@ -529,7 +562,7 @@ function trapFocus(e: KeyboardEvent): void {
 
 /** Move focus to the first focusable element in the overlay (e.g. the close button). */
 function focusFirstFocusable(): void {
-  getFocusableElements()[0]?.focus();
+  getFocusableElements()[0]?.focus({ preventScroll: true });
 }
 
 function removeKeyboardHandler(): void {
@@ -567,7 +600,7 @@ function focusPrimaryButton(root: ShadowRoot): void {
   const btn = root.querySelector(
     '[data-ct-replace], [data-ct-close]',
   ) as HTMLButtonElement | null;
-  btn?.focus();
+  btn?.focus({ preventScroll: true });
 }
 
 // ============================================================
