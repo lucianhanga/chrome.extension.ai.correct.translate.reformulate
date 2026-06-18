@@ -6,9 +6,9 @@ LLM by default** (fully private, nothing leaves your machine) or, opt-in,
 against **OpenAI**.
 
 [![CI](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml/badge.svg)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/actions/workflows/ci.yml)
-![tests](https://img.shields.io/badge/tests-320%20unit%20%7C%20127%20e2e-22c55e)
+![tests](https://img.shields.io/badge/tests-346%20unit%20%7C%20129%20e2e-22c55e)
 ![manifest](https://img.shields.io/badge/Manifest-V3-1e3a5f)
-![version](https://img.shields.io/badge/version-1.10.0-1e3a5f)
+![version](https://img.shields.io/badge/version-1.11.1-1e3a5f)
 ![license](https://img.shields.io/badge/license-MIT-22c55e)
 [![release](https://img.shields.io/github/v/release/lucianhanga/chrome.extension.ai.correct.translate.reformulate)](https://github.com/lucianhanga/chrome.extension.ai.correct.translate.reformulate/releases/latest)
 
@@ -187,18 +187,24 @@ pick up changes.
 
 ### Latest test run
 
-Run on the `main` branch on 2026-06-09, against a real local Ollama
+Run on 2026-06-18 (release 1.11.1), against a real local Ollama
 (model `qwen3.6:35b-a3b`):
 
 | Check | Result |
 |-------|--------|
 | `pnpm typecheck` (tsc, src + e2e) | pass |
 | `pnpm lint` (eslint) | pass |
-| `pnpm test` -- unit (Vitest) | 320 / 320 passed (17 files) |
-| `pnpm test:e2e` -- end-to-end (Playwright) | 127 / 127 passed (~1.8 min) |
+| `pnpm test` -- unit (Vitest) | 346 / 346 passed (20 files) |
+| `pnpm test:e2e` -- end-to-end (Playwright) | 129 / 129 passed |
 
 These figures are from a local run. The end-to-end suite is not part of CI
 (see below), so re-run it locally before a release.
+
+> **Note on e2e parallelism:** the real-Ollama tests (`reformulate`, `summarize`)
+> issue live inference calls. The default 5-way worker parallelism starves a
+> large local model such as `qwen3.6:35b-a3b`, causing per-test timeouts. Run
+> the suite (or those files) with `--workers=1` when using a heavy model so a
+> single inference completes within the per-test timeout.
 
 ### Continuous integration
 
