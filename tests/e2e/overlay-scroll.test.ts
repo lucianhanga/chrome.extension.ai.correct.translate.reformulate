@@ -136,3 +136,104 @@ test.describe('Overlay: no scroll-jump on a tall page', () => {
     expect(result.hostTop!).toBeLessThan(result.innerHeight);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regression: a tall result overlay anchored near the bottom of a short
+// viewport must stay fully on screen.
+//
+// Bug: when the selection sits where a 320px-tall result overlay fits neither
+// fully below nor fully above it, positionOverlay fell back to placing the
+// overlay below the selection, overflowing the bottom edge so its lower text
+// (and the Replace/Close buttons) were cut off and unreachable.
+//
+// Fix: positionOverlay measures the overlay's real height and clamps its top so
+// the whole overlay always stays within the viewport.
+// ---------------------------------------------------------------------------
+
+test.describe('Overlay: stays fully on screen near the viewport bottom', () => {
+  test('a tall result overlay near the bottom is not cut off', async ({ context, testServerBaseUrl }) => {
+    const page = await context.newPage();
+    // A short viewport so a 320px overlay cannot fit fully below or above the
+    // selection -- the exact condition that overflowed the bottom edge.
+    await page.setViewportSize({ width: 1000, height: 480 });
+    await page.goto(`${testServerBaseUrl}/test-page.html`);
+
+    const sw = context.serviceWorkers().find((w) => w.url().includes('service-worker.js'));
+    if (!sw) throw new Error('Service worker not found');
+
+    const realTabId = await sw.evaluate(async (): Promise<number> => {
+      const tabs = await chrome.tabs.query({ active: true });
+      return tabs[0]?.id ?? -1;
+    });
+
+    await sw.evaluate(async (tid: number) => {
+      await chrome.scripting.executeScript({ target: { tabId: tid }, files: ['content.js'] });
+    }, realTabId);
+
+    await waitForContentScript(sw, realTabId);
+
+    // Fix a selectable line in the upper-middle of the short viewport so a tall
+    // overlay fits neither fully below nor fully above it.
+    const setup = await page.evaluate(() => {
+      const p = document.createElement('p');
+      p.id = 'near-bottom-text';
+      p.textContent = 'Select this line for translation.';
+      p.style.position = 'fixed';
+      p.style.left = '40px';
+      p.style.top = '200px';
+      p.style.margin = '0';
+      document.body.appendChild(p);
+
+      const range = document.createRange();
+      range.selectNodeContents(p);
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+      sel?.addRange(range);
+
+      return { innerHeight: window.innerHeight };
+    });
+
+    // Precondition: the viewport really did shrink, so the overlay genuinely
+    // cannot fit on either side of the selection.
+    expect(setup.innerHeight).toBeLessThan(560);
+
+    // Long original + result text drives the overlay to its 320px max height.
+    const longText = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(30);
+    await sendMessageToPage(sw, realTabId, {
+      type: 'SHOW_RESULT',
+      payload: {
+        action: 'translate',
+        originalText: longText,
+        resultText: longText,
+        targetLanguage: 'German',
+      },
+    });
+
+    await page.waitForFunction(
+      () => document.querySelector('[data-ct-overlay-host]') !== null,
+      undefined,
+      { timeout: 5_000 },
+    );
+
+    const result = await page.evaluate(() => {
+      const host = document.querySelector('[data-ct-overlay-host]') as HTMLElement | null;
+      const rect = host?.getBoundingClientRect();
+      return {
+        top: rect?.top ?? null,
+        bottom: rect?.bottom ?? null,
+        height: rect?.height ?? null,
+        innerHeight: window.innerHeight,
+      };
+    });
+
+    // The overlay actually rendered tall (a real result box, not the short
+    // loading state) -- this is what previously overflowed.
+    expect(result.height).not.toBeNull();
+    expect(result.height!).toBeGreaterThan(150);
+
+    // ... and it is fully within the viewport: not clipped at the top, and not
+    // cut off at the bottom edge.
+    expect(result.top!).toBeGreaterThanOrEqual(0);
+    expect(result.bottom!).toBeLessThanOrEqual(result.innerHeight);
+  });
+});
