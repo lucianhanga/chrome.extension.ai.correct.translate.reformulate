@@ -124,6 +124,16 @@ function createOrReplaceOverlay(): ShadowRoot {
 
   const host = document.createElement('div');
   host.setAttribute('data-ct-overlay-host', '');
+  // Fix the host out of normal document flow immediately. If it were left as a
+  // static element at the end of <body>, focusing a control inside it (before
+  // positionOverlay runs) would scroll the page to the bottom to reveal it --
+  // throwing off the selection-relative positioning so the overlay lands off
+  // screen. positionOverlay sets the final top/left.
+  host.style.position = 'fixed';
+  host.style.top = '0';
+  host.style.left = '0';
+  host.style.zIndex = '2147483647';
+  host.style.pointerEvents = 'none';
   document.body.appendChild(host);
 
   const shadow = host.attachShadow({ mode: 'closed' });
@@ -150,7 +160,7 @@ function cleanup(): void {
   // editable field the user selected text in), so keyboard users are not
   // stranded once the dialog is gone.
   if (previouslyFocused && typeof previouslyFocused.focus === 'function') {
-    previouslyFocused.focus();
+    previouslyFocused.focus({ preventScroll: true });
   }
   previouslyFocused = null;
 }
@@ -352,7 +362,7 @@ function renderError(root: ShadowRoot, data: OverlayErrorData): void {
 
   // Escape dismisses; Tab is trapped within the dialog; focus moves to Dismiss.
   setupKeyboardHandler();
-  dismissBtn.focus();
+  dismissBtn.focus({ preventScroll: true });
 }
 
 // ============================================================
@@ -529,7 +539,7 @@ function trapFocus(e: KeyboardEvent): void {
 
 /** Move focus to the first focusable element in the overlay (e.g. the close button). */
 function focusFirstFocusable(): void {
-  getFocusableElements()[0]?.focus();
+  getFocusableElements()[0]?.focus({ preventScroll: true });
 }
 
 function removeKeyboardHandler(): void {
@@ -567,7 +577,7 @@ function focusPrimaryButton(root: ShadowRoot): void {
   const btn = root.querySelector(
     '[data-ct-replace], [data-ct-close]',
   ) as HTMLButtonElement | null;
-  btn?.focus();
+  btn?.focus({ preventScroll: true });
 }
 
 // ============================================================
